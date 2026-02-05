@@ -1,0 +1,2466 @@
+0000 /attn_body/transpose (Transpose)
+  inputs: ['/input/planes']
+  outputs: ['/attn_body/transpose']
+0001 /attn_body/reshape (Reshape)
+  inputs: ['/attn_body/transpose', '/const/att_body_shape']
+  outputs: ['/attn_body/reshape']
+0002 /attn_body/embedding/slice (Slice)
+  inputs: ['/attn_body/reshape', '/attn_body/embedding/slice/starts', '/attn_body/embedding/slice/ends']
+  outputs: ['/attn_body/embedding/slice']
+0003 /attn_body/embedding/reshape (Reshape)
+  inputs: ['/attn_body/embedding/slice', '/const/pos_info_shape']
+  outputs: ['/attn_body/embedding/reshape']
+0004 /attn_body/embedding/preprocess/matmul (MatMul)
+  inputs: ['/attn_body/embedding/reshape', '/attn_body/embedding/preprocess/matmul/w']
+  outputs: ['/attn_body/embedding/preprocess/matmul']
+0005 /attn_body/embedding/preprocess/add (Add)
+  inputs: ['/attn_body/embedding/preprocess/matmul', '/attn_body/embedding/preprocess/add/w']
+  outputs: ['/attn_body/embedding/preprocess/add']
+0006 /attn_body/embedding/preprocess/reshape (Reshape)
+  inputs: ['/attn_body/embedding/preprocess/add', '/const/pos_info_processed_shape']
+  outputs: ['/attn_body/embedding/preprocess/reshape']
+0007 /attn_body/embedding/concat (Concat)
+  inputs: ['/attn_body/reshape', '/attn_body/embedding/preprocess/reshape']
+  outputs: ['/attn_body/embedding/concat']
+0008 /attn_body/embedding/out/reshape (Reshape)
+  inputs: ['/attn_body/embedding/concat', '/const/embedding/out_shape']
+  outputs: ['/attn_body/embedding/out/reshape']
+0009 /attn_body/matmul (MatMul)
+  inputs: ['/attn_body/embedding/out/reshape', '/attn_body/matmul/w']
+  outputs: ['/attn_body/matmul']
+0010 /attn_body/add (Add)
+  inputs: ['/attn_body/matmul', '/attn_body/add/w']
+  outputs: ['/attn_body/add']
+0011 /attn_body/mish/softplus (Softplus)
+  inputs: ['/attn_body/add']
+  outputs: ['/attn_body/mish/softplus']
+0012 /attn_body/mish/tanh (Tanh)
+  inputs: ['/attn_body/mish/softplus']
+  outputs: ['/attn_body/mish/tanh']
+0013 /attn_body/mish (Mul)
+  inputs: ['/attn_body/mish/tanh', '/attn_body/add']
+  outputs: ['/attn_body/mish']
+0014 /attn_body/ln (LayerNormalization)
+  inputs: ['/attn_body/mish', '/attn_body/ln/w/scale', '/attn_body/ln/w/bias']
+  outputs: ['/attn_body/ln']
+0015 /attn_body/ma_gating/rehape (Reshape)
+  inputs: ['/attn_body/ln', '/const/ma_gating/shape1']
+  outputs: ['/attn_body/ma_gating/rehape']
+0016 /ip_mul_gate (Mul)
+  inputs: ['/attn_body/ma_gating/rehape', '/ip_mul_gate/w']
+  outputs: ['/ip_mul_gate']
+0017 /ip_add_gate (Add)
+  inputs: ['/ip_mul_gate', '/ip_add_gate/w']
+  outputs: ['/ip_add_gate']
+0018 /attn_body/rehape (Reshape)
+  inputs: ['/ip_add_gate', '/const/ma_gating/shape2']
+  outputs: ['/attn_body/rehape']
+0019 /attn_body/ffn/dense1/w (MatMul)
+  inputs: ['/attn_body/rehape', '/attn_body/ffn/dense1/w/w']
+  outputs: ['/attn_body/ffn/dense1/w']
+0020 /attn_body/ffn/dense1/b (Add)
+  inputs: ['/attn_body/ffn/dense1/w', '/attn_body/ffn/dense1/b/w']
+  outputs: ['/attn_body/ffn/dense1/b']
+0021 /attn_body/ffn/dense1/mish/softplus (Softplus)
+  inputs: ['/attn_body/ffn/dense1/b']
+  outputs: ['/attn_body/ffn/dense1/mish/softplus']
+0022 /attn_body/ffn/dense1/mish/tanh (Tanh)
+  inputs: ['/attn_body/ffn/dense1/mish/softplus']
+  outputs: ['/attn_body/ffn/dense1/mish/tanh']
+0023 /attn_body/ffn/dense1/mish (Mul)
+  inputs: ['/attn_body/ffn/dense1/mish/tanh', '/attn_body/ffn/dense1/b']
+  outputs: ['/attn_body/ffn/dense1/mish']
+0024 /attn_body/ffn/dense2/w (MatMul)
+  inputs: ['/attn_body/ffn/dense1/mish', '/attn_body/ffn/dense2/w/w']
+  outputs: ['/attn_body/ffn/dense2/w']
+0025 /attn_body/ffn/dense2/b (Add)
+  inputs: ['/attn_body/ffn/dense2/w', '/attn_body/ffn/dense2/b/w']
+  outputs: ['/attn_body/ffn/dense2/b']
+0026 /attn_body/ffn/alpha (Mul)
+  inputs: ['/attn_body/ffn/dense2/b', '/attn_body/ffn/alpha/w']
+  outputs: ['/attn_body/ffn/alpha']
+0027 /attn_body/ffn/skip (Add)
+  inputs: ['/attn_body/ffn/alpha', '/attn_body/rehape']
+  outputs: ['/attn_body/ffn/skip']
+0028 /attn_body/ln2 (LayerNormalization)
+  inputs: ['/attn_body/ffn/skip', '/attn_body/ln2/w/scale', '/attn_body/ln2/w/bias']
+  outputs: ['/attn_body/ln2']
+0029 /encoder0/mha/Q/w (MatMul)
+  inputs: ['/attn_body/ln2', '/encoder0/mha/Q/w/w']
+  outputs: ['/encoder0/mha/Q/w']
+0030 /encoder0/mha/Q/b (Add)
+  inputs: ['/encoder0/mha/Q/w', '/encoder0/mha/Q/b/w']
+  outputs: ['/encoder0/mha/Q/b']
+0031 /encoder0/mha/Q/reshape (Reshape)
+  inputs: ['/encoder0/mha/Q/b', '/const/encoder0/mha/shape']
+  outputs: ['/encoder0/mha/Q/reshape']
+0032 /encoder0/mha/Q/transpose (Transpose)
+  inputs: ['/encoder0/mha/Q/reshape']
+  outputs: ['/encoder0/mha/Q/transpose']
+0033 /encoder0/mha/K/w (MatMul)
+  inputs: ['/attn_body/ln2', '/encoder0/mha/K/w/w']
+  outputs: ['/encoder0/mha/K/w']
+0034 /encoder0/mha/K/b (Add)
+  inputs: ['/encoder0/mha/K/w', '/encoder0/mha/K/b/w']
+  outputs: ['/encoder0/mha/K/b']
+0035 /encoder0/mha/K/reshape (Reshape)
+  inputs: ['/encoder0/mha/K/b', '/const/encoder0/mha/shape']
+  outputs: ['/encoder0/mha/K/reshape']
+0036 /encoder0/mha/K/transpose (Transpose)
+  inputs: ['/encoder0/mha/K/reshape']
+  outputs: ['/encoder0/mha/K/transpose']
+0037 /encoder0/mha/V/w (MatMul)
+  inputs: ['/attn_body/ln2', '/encoder0/mha/V/w/w']
+  outputs: ['/encoder0/mha/V/w']
+0038 /encoder0/mha/V/b (Add)
+  inputs: ['/encoder0/mha/V/w', '/encoder0/mha/V/b/w']
+  outputs: ['/encoder0/mha/V/b']
+0039 /encoder0/mha/V/reshape (Reshape)
+  inputs: ['/encoder0/mha/V/b', '/const/encoder0/mha/shape']
+  outputs: ['/encoder0/mha/V/reshape']
+0040 /encoder0/mha/V/transpose (Transpose)
+  inputs: ['/encoder0/mha/V/reshape']
+  outputs: ['/encoder0/mha/V/transpose']
+0041 /encoder0/mha/QK/matmul (MatMul)
+  inputs: ['/encoder0/mha/Q/transpose', '/encoder0/mha/K/transpose']
+  outputs: ['/encoder0/mha/QK/matmul']
+0042 /encoder0/mha/QK/scale (Mul)
+  inputs: ['/encoder0/mha/QK/matmul', '/encoder0/mha/QK/scale/w']
+  outputs: ['/encoder0/mha/QK/scale']
+0043 /encoder0/smolgen/compress (MatMul)
+  inputs: ['/attn_body/ln2', '/encoder0/smolgen/compress/w']
+  outputs: ['/encoder0/smolgen/compress']
+0044 /encoder0/smolgen/compress/reshape (Reshape)
+  inputs: ['/encoder0/smolgen/compress', '/const/encoder0/smolgen/compress/shape']
+  outputs: ['/encoder0/smolgen/compress/reshape']
+0045 /encoder0/smolgen/dense1/w (MatMul)
+  inputs: ['/encoder0/smolgen/compress/reshape', '/encoder0/smolgen/dense1/w/w']
+  outputs: ['/encoder0/smolgen/dense1/w']
+0046 /encoder0/smolgen/dense1/b (Add)
+  inputs: ['/encoder0/smolgen/dense1/w', '/encoder0/smolgen/dense1/b/w']
+  outputs: ['/encoder0/smolgen/dense1/b']
+0047 /encoder0/smolgen/dense1/swish/sigmoid (Sigmoid)
+  inputs: ['/encoder0/smolgen/dense1/b']
+  outputs: ['/encoder0/smolgen/dense1/swish/sigmoid']
+0048 /encoder0/smolgen/dense1/swish (Mul)
+  inputs: ['/encoder0/smolgen/dense1/swish/sigmoid', '/encoder0/smolgen/dense1/b']
+  outputs: ['/encoder0/smolgen/dense1/swish']
+0049 /encoder0/smolgen/ln1 (LayerNormalization)
+  inputs: ['/encoder0/smolgen/dense1/swish', '/encoder0/smolgen/ln1/w/scale', '/encoder0/smolgen/ln1/w/bias']
+  outputs: ['/encoder0/smolgen/ln1']
+0050 /encoder0/smolgen/dense2/w (MatMul)
+  inputs: ['/encoder0/smolgen/ln1', '/encoder0/smolgen/dense2/w/w']
+  outputs: ['/encoder0/smolgen/dense2/w']
+0051 /encoder0/smolgen/dense2/b (Add)
+  inputs: ['/encoder0/smolgen/dense2/w', '/encoder0/smolgen/dense2/b/w']
+  outputs: ['/encoder0/smolgen/dense2/b']
+0052 /encoder0/smolgen/dense2/swish/sigmoid (Sigmoid)
+  inputs: ['/encoder0/smolgen/dense2/b']
+  outputs: ['/encoder0/smolgen/dense2/swish/sigmoid']
+0053 /encoder0/smolgen/dense2/swish (Mul)
+  inputs: ['/encoder0/smolgen/dense2/swish/sigmoid', '/encoder0/smolgen/dense2/b']
+  outputs: ['/encoder0/smolgen/dense2/swish']
+0054 /encoder0/smolgen/ln2 (LayerNormalization)
+  inputs: ['/encoder0/smolgen/dense2/swish', '/encoder0/smolgen/ln2/w/scale', '/encoder0/smolgen/ln2/w/bias']
+  outputs: ['/encoder0/smolgen/ln2']
+0055 /encoder0/smolgen/gen_from/reshape (Reshape)
+  inputs: ['/encoder0/smolgen/ln2', '/const/encoder0/smolgen/gen_from/shape']
+  outputs: ['/encoder0/smolgen/gen_from/reshape']
+0056 /encoder0/smolgen/smol_weight_gen (MatMul)
+  inputs: ['/encoder0/smolgen/gen_from/reshape', '/const/smolgen_w']
+  outputs: ['/encoder0/smolgen/smol_weight_gen']
+0057 /encoder0/smolgen/out/reshape (Reshape)
+  inputs: ['/encoder0/smolgen/smol_weight_gen', '/const/encoder0/smolgen/out/shape']
+  outputs: ['/encoder0/smolgen/out/reshape']
+0058 /encoder0/smolgen_weights (Add)
+  inputs: ['/encoder0/mha/QK/scale', '/encoder0/smolgen/out/reshape']
+  outputs: ['/encoder0/smolgen_weights']
+0059 /encoder0/mha/QK/softmax (Softmax)
+  inputs: ['/encoder0/smolgen_weights']
+  outputs: ['/encoder0/mha/QK/softmax']
+0060 /encoder0/mha/QKV/matmul (MatMul)
+  inputs: ['/encoder0/mha/QK/softmax', '/encoder0/mha/V/transpose']
+  outputs: ['/encoder0/mha/QKV/matmul']
+0061 /encoder0/mha/out/transpose (Transpose)
+  inputs: ['/encoder0/mha/QKV/matmul']
+  outputs: ['/encoder0/mha/out/transpose']
+0062 /encoder0/mha/out/reshape (Reshape)
+  inputs: ['/encoder0/mha/out/transpose', '/const/encoder0/mha/out/shape']
+  outputs: ['/encoder0/mha/out/reshape']
+0063 /encoder0/mha/out/dense/w (MatMul)
+  inputs: ['/encoder0/mha/out/reshape', '/encoder0/mha/out/dense/w/w']
+  outputs: ['/encoder0/mha/out/dense/w']
+0064 /encoder0/mha/out/dense/b (Add)
+  inputs: ['/encoder0/mha/out/dense/w', '/encoder0/mha/out/dense/b/w']
+  outputs: ['/encoder0/mha/out/dense/b']
+0065 /encoder0/alpha*input (Mul)
+  inputs: ['/encoder0/mha/out/dense/b', '/encoder0/alpha*input/w']
+  outputs: ['/encoder0/alpha*input']
+0066 /encoder0/mha/out/skip (Add)
+  inputs: ['/encoder0/alpha*input', '/attn_body/ln2']
+  outputs: ['/encoder0/mha/out/skip']
+0067 /encoder0/ln1 (LayerNormalization)
+  inputs: ['/encoder0/mha/out/skip', '/encoder0/ln1/w/scale', '/encoder0/ln1/w/bias']
+  outputs: ['/encoder0/ln1']
+0068 /encoder0/ffn/dense1/w (MatMul)
+  inputs: ['/encoder0/ln1', '/encoder0/ffn/dense1/w/w']
+  outputs: ['/encoder0/ffn/dense1/w']
+0069 /encoder0/ffn/dense1/b (Add)
+  inputs: ['/encoder0/ffn/dense1/w', '/encoder0/ffn/dense1/b/w']
+  outputs: ['/encoder0/ffn/dense1/b']
+0070 /encoder0/ffn/dense1/mish/softplus (Softplus)
+  inputs: ['/encoder0/ffn/dense1/b']
+  outputs: ['/encoder0/ffn/dense1/mish/softplus']
+0071 /encoder0/ffn/dense1/mish/tanh (Tanh)
+  inputs: ['/encoder0/ffn/dense1/mish/softplus']
+  outputs: ['/encoder0/ffn/dense1/mish/tanh']
+0072 /encoder0/ffn/dense1/mish (Mul)
+  inputs: ['/encoder0/ffn/dense1/mish/tanh', '/encoder0/ffn/dense1/b']
+  outputs: ['/encoder0/ffn/dense1/mish']
+0073 /encoder0/ffn/dense2/w (MatMul)
+  inputs: ['/encoder0/ffn/dense1/mish', '/encoder0/ffn/dense2/w/w']
+  outputs: ['/encoder0/ffn/dense2/w']
+0074 /encoder0/ffn/dense2/b (Add)
+  inputs: ['/encoder0/ffn/dense2/w', '/encoder0/ffn/dense2/b/w']
+  outputs: ['/encoder0/ffn/dense2/b']
+0075 /encoder0/ffn/alpha (Mul)
+  inputs: ['/encoder0/ffn/dense2/b', '/encoder0/ffn/alpha/w']
+  outputs: ['/encoder0/ffn/alpha']
+0076 /encoder0/ffn/skip (Add)
+  inputs: ['/encoder0/ffn/alpha', '/encoder0/ln1']
+  outputs: ['/encoder0/ffn/skip']
+0077 /encoder0/ln2 (LayerNormalization)
+  inputs: ['/encoder0/ffn/skip', '/encoder0/ln2/w/scale', '/encoder0/ln2/w/bias']
+  outputs: ['/encoder0/ln2']
+0078 /encoder1/mha/Q/w (MatMul)
+  inputs: ['/encoder0/ln2', '/encoder1/mha/Q/w/w']
+  outputs: ['/encoder1/mha/Q/w']
+0079 /encoder1/mha/Q/b (Add)
+  inputs: ['/encoder1/mha/Q/w', '/encoder1/mha/Q/b/w']
+  outputs: ['/encoder1/mha/Q/b']
+0080 /encoder1/mha/Q/reshape (Reshape)
+  inputs: ['/encoder1/mha/Q/b', '/const/encoder1/mha/shape']
+  outputs: ['/encoder1/mha/Q/reshape']
+0081 /encoder1/mha/Q/transpose (Transpose)
+  inputs: ['/encoder1/mha/Q/reshape']
+  outputs: ['/encoder1/mha/Q/transpose']
+0082 /encoder1/mha/K/w (MatMul)
+  inputs: ['/encoder0/ln2', '/encoder1/mha/K/w/w']
+  outputs: ['/encoder1/mha/K/w']
+0083 /encoder1/mha/K/b (Add)
+  inputs: ['/encoder1/mha/K/w', '/encoder1/mha/K/b/w']
+  outputs: ['/encoder1/mha/K/b']
+0084 /encoder1/mha/K/reshape (Reshape)
+  inputs: ['/encoder1/mha/K/b', '/const/encoder1/mha/shape']
+  outputs: ['/encoder1/mha/K/reshape']
+0085 /encoder1/mha/K/transpose (Transpose)
+  inputs: ['/encoder1/mha/K/reshape']
+  outputs: ['/encoder1/mha/K/transpose']
+0086 /encoder1/mha/V/w (MatMul)
+  inputs: ['/encoder0/ln2', '/encoder1/mha/V/w/w']
+  outputs: ['/encoder1/mha/V/w']
+0087 /encoder1/mha/V/b (Add)
+  inputs: ['/encoder1/mha/V/w', '/encoder1/mha/V/b/w']
+  outputs: ['/encoder1/mha/V/b']
+0088 /encoder1/mha/V/reshape (Reshape)
+  inputs: ['/encoder1/mha/V/b', '/const/encoder1/mha/shape']
+  outputs: ['/encoder1/mha/V/reshape']
+0089 /encoder1/mha/V/transpose (Transpose)
+  inputs: ['/encoder1/mha/V/reshape']
+  outputs: ['/encoder1/mha/V/transpose']
+0090 /encoder1/mha/QK/matmul (MatMul)
+  inputs: ['/encoder1/mha/Q/transpose', '/encoder1/mha/K/transpose']
+  outputs: ['/encoder1/mha/QK/matmul']
+0091 /encoder1/mha/QK/scale (Mul)
+  inputs: ['/encoder1/mha/QK/matmul', '/encoder1/mha/QK/scale/w']
+  outputs: ['/encoder1/mha/QK/scale']
+0092 /encoder1/smolgen/compress (MatMul)
+  inputs: ['/encoder0/ln2', '/encoder1/smolgen/compress/w']
+  outputs: ['/encoder1/smolgen/compress']
+0093 /encoder1/smolgen/compress/reshape (Reshape)
+  inputs: ['/encoder1/smolgen/compress', '/const/encoder1/smolgen/compress/shape']
+  outputs: ['/encoder1/smolgen/compress/reshape']
+0094 /encoder1/smolgen/dense1/w (MatMul)
+  inputs: ['/encoder1/smolgen/compress/reshape', '/encoder1/smolgen/dense1/w/w']
+  outputs: ['/encoder1/smolgen/dense1/w']
+0095 /encoder1/smolgen/dense1/b (Add)
+  inputs: ['/encoder1/smolgen/dense1/w', '/encoder1/smolgen/dense1/b/w']
+  outputs: ['/encoder1/smolgen/dense1/b']
+0096 /encoder1/smolgen/dense1/swish/sigmoid (Sigmoid)
+  inputs: ['/encoder1/smolgen/dense1/b']
+  outputs: ['/encoder1/smolgen/dense1/swish/sigmoid']
+0097 /encoder1/smolgen/dense1/swish (Mul)
+  inputs: ['/encoder1/smolgen/dense1/swish/sigmoid', '/encoder1/smolgen/dense1/b']
+  outputs: ['/encoder1/smolgen/dense1/swish']
+0098 /encoder1/smolgen/ln1 (LayerNormalization)
+  inputs: ['/encoder1/smolgen/dense1/swish', '/encoder1/smolgen/ln1/w/scale', '/encoder1/smolgen/ln1/w/bias']
+  outputs: ['/encoder1/smolgen/ln1']
+0099 /encoder1/smolgen/dense2/w (MatMul)
+  inputs: ['/encoder1/smolgen/ln1', '/encoder1/smolgen/dense2/w/w']
+  outputs: ['/encoder1/smolgen/dense2/w']
+0100 /encoder1/smolgen/dense2/b (Add)
+  inputs: ['/encoder1/smolgen/dense2/w', '/encoder1/smolgen/dense2/b/w']
+  outputs: ['/encoder1/smolgen/dense2/b']
+0101 /encoder1/smolgen/dense2/swish/sigmoid (Sigmoid)
+  inputs: ['/encoder1/smolgen/dense2/b']
+  outputs: ['/encoder1/smolgen/dense2/swish/sigmoid']
+0102 /encoder1/smolgen/dense2/swish (Mul)
+  inputs: ['/encoder1/smolgen/dense2/swish/sigmoid', '/encoder1/smolgen/dense2/b']
+  outputs: ['/encoder1/smolgen/dense2/swish']
+0103 /encoder1/smolgen/ln2 (LayerNormalization)
+  inputs: ['/encoder1/smolgen/dense2/swish', '/encoder1/smolgen/ln2/w/scale', '/encoder1/smolgen/ln2/w/bias']
+  outputs: ['/encoder1/smolgen/ln2']
+0104 /encoder1/smolgen/gen_from/reshape (Reshape)
+  inputs: ['/encoder1/smolgen/ln2', '/const/encoder1/smolgen/gen_from/shape']
+  outputs: ['/encoder1/smolgen/gen_from/reshape']
+0105 /encoder1/smolgen/smol_weight_gen (MatMul)
+  inputs: ['/encoder1/smolgen/gen_from/reshape', '/const/smolgen_w']
+  outputs: ['/encoder1/smolgen/smol_weight_gen']
+0106 /encoder1/smolgen/out/reshape (Reshape)
+  inputs: ['/encoder1/smolgen/smol_weight_gen', '/const/encoder1/smolgen/out/shape']
+  outputs: ['/encoder1/smolgen/out/reshape']
+0107 /encoder1/smolgen_weights (Add)
+  inputs: ['/encoder1/mha/QK/scale', '/encoder1/smolgen/out/reshape']
+  outputs: ['/encoder1/smolgen_weights']
+0108 /encoder1/mha/QK/softmax (Softmax)
+  inputs: ['/encoder1/smolgen_weights']
+  outputs: ['/encoder1/mha/QK/softmax']
+0109 /encoder1/mha/QKV/matmul (MatMul)
+  inputs: ['/encoder1/mha/QK/softmax', '/encoder1/mha/V/transpose']
+  outputs: ['/encoder1/mha/QKV/matmul']
+0110 /encoder1/mha/out/transpose (Transpose)
+  inputs: ['/encoder1/mha/QKV/matmul']
+  outputs: ['/encoder1/mha/out/transpose']
+0111 /encoder1/mha/out/reshape (Reshape)
+  inputs: ['/encoder1/mha/out/transpose', '/const/encoder1/mha/out/shape']
+  outputs: ['/encoder1/mha/out/reshape']
+0112 /encoder1/mha/out/dense/w (MatMul)
+  inputs: ['/encoder1/mha/out/reshape', '/encoder1/mha/out/dense/w/w']
+  outputs: ['/encoder1/mha/out/dense/w']
+0113 /encoder1/mha/out/dense/b (Add)
+  inputs: ['/encoder1/mha/out/dense/w', '/encoder1/mha/out/dense/b/w']
+  outputs: ['/encoder1/mha/out/dense/b']
+0114 /encoder1/alpha*input (Mul)
+  inputs: ['/encoder1/mha/out/dense/b', '/encoder1/alpha*input/w']
+  outputs: ['/encoder1/alpha*input']
+0115 /encoder1/mha/out/skip (Add)
+  inputs: ['/encoder1/alpha*input', '/encoder0/ln2']
+  outputs: ['/encoder1/mha/out/skip']
+0116 /encoder1/ln1 (LayerNormalization)
+  inputs: ['/encoder1/mha/out/skip', '/encoder1/ln1/w/scale', '/encoder1/ln1/w/bias']
+  outputs: ['/encoder1/ln1']
+0117 /encoder1/ffn/dense1/w (MatMul)
+  inputs: ['/encoder1/ln1', '/encoder1/ffn/dense1/w/w']
+  outputs: ['/encoder1/ffn/dense1/w']
+0118 /encoder1/ffn/dense1/b (Add)
+  inputs: ['/encoder1/ffn/dense1/w', '/encoder1/ffn/dense1/b/w']
+  outputs: ['/encoder1/ffn/dense1/b']
+0119 /encoder1/ffn/dense1/mish/softplus (Softplus)
+  inputs: ['/encoder1/ffn/dense1/b']
+  outputs: ['/encoder1/ffn/dense1/mish/softplus']
+0120 /encoder1/ffn/dense1/mish/tanh (Tanh)
+  inputs: ['/encoder1/ffn/dense1/mish/softplus']
+  outputs: ['/encoder1/ffn/dense1/mish/tanh']
+0121 /encoder1/ffn/dense1/mish (Mul)
+  inputs: ['/encoder1/ffn/dense1/mish/tanh', '/encoder1/ffn/dense1/b']
+  outputs: ['/encoder1/ffn/dense1/mish']
+0122 /encoder1/ffn/dense2/w (MatMul)
+  inputs: ['/encoder1/ffn/dense1/mish', '/encoder1/ffn/dense2/w/w']
+  outputs: ['/encoder1/ffn/dense2/w']
+0123 /encoder1/ffn/dense2/b (Add)
+  inputs: ['/encoder1/ffn/dense2/w', '/encoder1/ffn/dense2/b/w']
+  outputs: ['/encoder1/ffn/dense2/b']
+0124 /encoder1/ffn/alpha (Mul)
+  inputs: ['/encoder1/ffn/dense2/b', '/encoder1/ffn/alpha/w']
+  outputs: ['/encoder1/ffn/alpha']
+0125 /encoder1/ffn/skip (Add)
+  inputs: ['/encoder1/ffn/alpha', '/encoder1/ln1']
+  outputs: ['/encoder1/ffn/skip']
+0126 /encoder1/ln2 (LayerNormalization)
+  inputs: ['/encoder1/ffn/skip', '/encoder1/ln2/w/scale', '/encoder1/ln2/w/bias']
+  outputs: ['/encoder1/ln2']
+0127 /encoder2/mha/Q/w (MatMul)
+  inputs: ['/encoder1/ln2', '/encoder2/mha/Q/w/w']
+  outputs: ['/encoder2/mha/Q/w']
+0128 /encoder2/mha/Q/b (Add)
+  inputs: ['/encoder2/mha/Q/w', '/encoder2/mha/Q/b/w']
+  outputs: ['/encoder2/mha/Q/b']
+0129 /encoder2/mha/Q/reshape (Reshape)
+  inputs: ['/encoder2/mha/Q/b', '/const/encoder2/mha/shape']
+  outputs: ['/encoder2/mha/Q/reshape']
+0130 /encoder2/mha/Q/transpose (Transpose)
+  inputs: ['/encoder2/mha/Q/reshape']
+  outputs: ['/encoder2/mha/Q/transpose']
+0131 /encoder2/mha/K/w (MatMul)
+  inputs: ['/encoder1/ln2', '/encoder2/mha/K/w/w']
+  outputs: ['/encoder2/mha/K/w']
+0132 /encoder2/mha/K/b (Add)
+  inputs: ['/encoder2/mha/K/w', '/encoder2/mha/K/b/w']
+  outputs: ['/encoder2/mha/K/b']
+0133 /encoder2/mha/K/reshape (Reshape)
+  inputs: ['/encoder2/mha/K/b', '/const/encoder2/mha/shape']
+  outputs: ['/encoder2/mha/K/reshape']
+0134 /encoder2/mha/K/transpose (Transpose)
+  inputs: ['/encoder2/mha/K/reshape']
+  outputs: ['/encoder2/mha/K/transpose']
+0135 /encoder2/mha/V/w (MatMul)
+  inputs: ['/encoder1/ln2', '/encoder2/mha/V/w/w']
+  outputs: ['/encoder2/mha/V/w']
+0136 /encoder2/mha/V/b (Add)
+  inputs: ['/encoder2/mha/V/w', '/encoder2/mha/V/b/w']
+  outputs: ['/encoder2/mha/V/b']
+0137 /encoder2/mha/V/reshape (Reshape)
+  inputs: ['/encoder2/mha/V/b', '/const/encoder2/mha/shape']
+  outputs: ['/encoder2/mha/V/reshape']
+0138 /encoder2/mha/V/transpose (Transpose)
+  inputs: ['/encoder2/mha/V/reshape']
+  outputs: ['/encoder2/mha/V/transpose']
+0139 /encoder2/mha/QK/matmul (MatMul)
+  inputs: ['/encoder2/mha/Q/transpose', '/encoder2/mha/K/transpose']
+  outputs: ['/encoder2/mha/QK/matmul']
+0140 /encoder2/mha/QK/scale (Mul)
+  inputs: ['/encoder2/mha/QK/matmul', '/encoder2/mha/QK/scale/w']
+  outputs: ['/encoder2/mha/QK/scale']
+0141 /encoder2/smolgen/compress (MatMul)
+  inputs: ['/encoder1/ln2', '/encoder2/smolgen/compress/w']
+  outputs: ['/encoder2/smolgen/compress']
+0142 /encoder2/smolgen/compress/reshape (Reshape)
+  inputs: ['/encoder2/smolgen/compress', '/const/encoder2/smolgen/compress/shape']
+  outputs: ['/encoder2/smolgen/compress/reshape']
+0143 /encoder2/smolgen/dense1/w (MatMul)
+  inputs: ['/encoder2/smolgen/compress/reshape', '/encoder2/smolgen/dense1/w/w']
+  outputs: ['/encoder2/smolgen/dense1/w']
+0144 /encoder2/smolgen/dense1/b (Add)
+  inputs: ['/encoder2/smolgen/dense1/w', '/encoder2/smolgen/dense1/b/w']
+  outputs: ['/encoder2/smolgen/dense1/b']
+0145 /encoder2/smolgen/dense1/swish/sigmoid (Sigmoid)
+  inputs: ['/encoder2/smolgen/dense1/b']
+  outputs: ['/encoder2/smolgen/dense1/swish/sigmoid']
+0146 /encoder2/smolgen/dense1/swish (Mul)
+  inputs: ['/encoder2/smolgen/dense1/swish/sigmoid', '/encoder2/smolgen/dense1/b']
+  outputs: ['/encoder2/smolgen/dense1/swish']
+0147 /encoder2/smolgen/ln1 (LayerNormalization)
+  inputs: ['/encoder2/smolgen/dense1/swish', '/encoder2/smolgen/ln1/w/scale', '/encoder2/smolgen/ln1/w/bias']
+  outputs: ['/encoder2/smolgen/ln1']
+0148 /encoder2/smolgen/dense2/w (MatMul)
+  inputs: ['/encoder2/smolgen/ln1', '/encoder2/smolgen/dense2/w/w']
+  outputs: ['/encoder2/smolgen/dense2/w']
+0149 /encoder2/smolgen/dense2/b (Add)
+  inputs: ['/encoder2/smolgen/dense2/w', '/encoder2/smolgen/dense2/b/w']
+  outputs: ['/encoder2/smolgen/dense2/b']
+0150 /encoder2/smolgen/dense2/swish/sigmoid (Sigmoid)
+  inputs: ['/encoder2/smolgen/dense2/b']
+  outputs: ['/encoder2/smolgen/dense2/swish/sigmoid']
+0151 /encoder2/smolgen/dense2/swish (Mul)
+  inputs: ['/encoder2/smolgen/dense2/swish/sigmoid', '/encoder2/smolgen/dense2/b']
+  outputs: ['/encoder2/smolgen/dense2/swish']
+0152 /encoder2/smolgen/ln2 (LayerNormalization)
+  inputs: ['/encoder2/smolgen/dense2/swish', '/encoder2/smolgen/ln2/w/scale', '/encoder2/smolgen/ln2/w/bias']
+  outputs: ['/encoder2/smolgen/ln2']
+0153 /encoder2/smolgen/gen_from/reshape (Reshape)
+  inputs: ['/encoder2/smolgen/ln2', '/const/encoder2/smolgen/gen_from/shape']
+  outputs: ['/encoder2/smolgen/gen_from/reshape']
+0154 /encoder2/smolgen/smol_weight_gen (MatMul)
+  inputs: ['/encoder2/smolgen/gen_from/reshape', '/const/smolgen_w']
+  outputs: ['/encoder2/smolgen/smol_weight_gen']
+0155 /encoder2/smolgen/out/reshape (Reshape)
+  inputs: ['/encoder2/smolgen/smol_weight_gen', '/const/encoder2/smolgen/out/shape']
+  outputs: ['/encoder2/smolgen/out/reshape']
+0156 /encoder2/smolgen_weights (Add)
+  inputs: ['/encoder2/mha/QK/scale', '/encoder2/smolgen/out/reshape']
+  outputs: ['/encoder2/smolgen_weights']
+0157 /encoder2/mha/QK/softmax (Softmax)
+  inputs: ['/encoder2/smolgen_weights']
+  outputs: ['/encoder2/mha/QK/softmax']
+0158 /encoder2/mha/QKV/matmul (MatMul)
+  inputs: ['/encoder2/mha/QK/softmax', '/encoder2/mha/V/transpose']
+  outputs: ['/encoder2/mha/QKV/matmul']
+0159 /encoder2/mha/out/transpose (Transpose)
+  inputs: ['/encoder2/mha/QKV/matmul']
+  outputs: ['/encoder2/mha/out/transpose']
+0160 /encoder2/mha/out/reshape (Reshape)
+  inputs: ['/encoder2/mha/out/transpose', '/const/encoder2/mha/out/shape']
+  outputs: ['/encoder2/mha/out/reshape']
+0161 /encoder2/mha/out/dense/w (MatMul)
+  inputs: ['/encoder2/mha/out/reshape', '/encoder2/mha/out/dense/w/w']
+  outputs: ['/encoder2/mha/out/dense/w']
+0162 /encoder2/mha/out/dense/b (Add)
+  inputs: ['/encoder2/mha/out/dense/w', '/encoder2/mha/out/dense/b/w']
+  outputs: ['/encoder2/mha/out/dense/b']
+0163 /encoder2/alpha*input (Mul)
+  inputs: ['/encoder2/mha/out/dense/b', '/encoder2/alpha*input/w']
+  outputs: ['/encoder2/alpha*input']
+0164 /encoder2/mha/out/skip (Add)
+  inputs: ['/encoder2/alpha*input', '/encoder1/ln2']
+  outputs: ['/encoder2/mha/out/skip']
+0165 /encoder2/ln1 (LayerNormalization)
+  inputs: ['/encoder2/mha/out/skip', '/encoder2/ln1/w/scale', '/encoder2/ln1/w/bias']
+  outputs: ['/encoder2/ln1']
+0166 /encoder2/ffn/dense1/w (MatMul)
+  inputs: ['/encoder2/ln1', '/encoder2/ffn/dense1/w/w']
+  outputs: ['/encoder2/ffn/dense1/w']
+0167 /encoder2/ffn/dense1/b (Add)
+  inputs: ['/encoder2/ffn/dense1/w', '/encoder2/ffn/dense1/b/w']
+  outputs: ['/encoder2/ffn/dense1/b']
+0168 /encoder2/ffn/dense1/mish/softplus (Softplus)
+  inputs: ['/encoder2/ffn/dense1/b']
+  outputs: ['/encoder2/ffn/dense1/mish/softplus']
+0169 /encoder2/ffn/dense1/mish/tanh (Tanh)
+  inputs: ['/encoder2/ffn/dense1/mish/softplus']
+  outputs: ['/encoder2/ffn/dense1/mish/tanh']
+0170 /encoder2/ffn/dense1/mish (Mul)
+  inputs: ['/encoder2/ffn/dense1/mish/tanh', '/encoder2/ffn/dense1/b']
+  outputs: ['/encoder2/ffn/dense1/mish']
+0171 /encoder2/ffn/dense2/w (MatMul)
+  inputs: ['/encoder2/ffn/dense1/mish', '/encoder2/ffn/dense2/w/w']
+  outputs: ['/encoder2/ffn/dense2/w']
+0172 /encoder2/ffn/dense2/b (Add)
+  inputs: ['/encoder2/ffn/dense2/w', '/encoder2/ffn/dense2/b/w']
+  outputs: ['/encoder2/ffn/dense2/b']
+0173 /encoder2/ffn/alpha (Mul)
+  inputs: ['/encoder2/ffn/dense2/b', '/encoder2/ffn/alpha/w']
+  outputs: ['/encoder2/ffn/alpha']
+0174 /encoder2/ffn/skip (Add)
+  inputs: ['/encoder2/ffn/alpha', '/encoder2/ln1']
+  outputs: ['/encoder2/ffn/skip']
+0175 /encoder2/ln2 (LayerNormalization)
+  inputs: ['/encoder2/ffn/skip', '/encoder2/ln2/w/scale', '/encoder2/ln2/w/bias']
+  outputs: ['/encoder2/ln2']
+0176 /encoder3/mha/Q/w (MatMul)
+  inputs: ['/encoder2/ln2', '/encoder3/mha/Q/w/w']
+  outputs: ['/encoder3/mha/Q/w']
+0177 /encoder3/mha/Q/b (Add)
+  inputs: ['/encoder3/mha/Q/w', '/encoder3/mha/Q/b/w']
+  outputs: ['/encoder3/mha/Q/b']
+0178 /encoder3/mha/Q/reshape (Reshape)
+  inputs: ['/encoder3/mha/Q/b', '/const/encoder3/mha/shape']
+  outputs: ['/encoder3/mha/Q/reshape']
+0179 /encoder3/mha/Q/transpose (Transpose)
+  inputs: ['/encoder3/mha/Q/reshape']
+  outputs: ['/encoder3/mha/Q/transpose']
+0180 /encoder3/mha/K/w (MatMul)
+  inputs: ['/encoder2/ln2', '/encoder3/mha/K/w/w']
+  outputs: ['/encoder3/mha/K/w']
+0181 /encoder3/mha/K/b (Add)
+  inputs: ['/encoder3/mha/K/w', '/encoder3/mha/K/b/w']
+  outputs: ['/encoder3/mha/K/b']
+0182 /encoder3/mha/K/reshape (Reshape)
+  inputs: ['/encoder3/mha/K/b', '/const/encoder3/mha/shape']
+  outputs: ['/encoder3/mha/K/reshape']
+0183 /encoder3/mha/K/transpose (Transpose)
+  inputs: ['/encoder3/mha/K/reshape']
+  outputs: ['/encoder3/mha/K/transpose']
+0184 /encoder3/mha/V/w (MatMul)
+  inputs: ['/encoder2/ln2', '/encoder3/mha/V/w/w']
+  outputs: ['/encoder3/mha/V/w']
+0185 /encoder3/mha/V/b (Add)
+  inputs: ['/encoder3/mha/V/w', '/encoder3/mha/V/b/w']
+  outputs: ['/encoder3/mha/V/b']
+0186 /encoder3/mha/V/reshape (Reshape)
+  inputs: ['/encoder3/mha/V/b', '/const/encoder3/mha/shape']
+  outputs: ['/encoder3/mha/V/reshape']
+0187 /encoder3/mha/V/transpose (Transpose)
+  inputs: ['/encoder3/mha/V/reshape']
+  outputs: ['/encoder3/mha/V/transpose']
+0188 /encoder3/mha/QK/matmul (MatMul)
+  inputs: ['/encoder3/mha/Q/transpose', '/encoder3/mha/K/transpose']
+  outputs: ['/encoder3/mha/QK/matmul']
+0189 /encoder3/mha/QK/scale (Mul)
+  inputs: ['/encoder3/mha/QK/matmul', '/encoder3/mha/QK/scale/w']
+  outputs: ['/encoder3/mha/QK/scale']
+0190 /encoder3/smolgen/compress (MatMul)
+  inputs: ['/encoder2/ln2', '/encoder3/smolgen/compress/w']
+  outputs: ['/encoder3/smolgen/compress']
+0191 /encoder3/smolgen/compress/reshape (Reshape)
+  inputs: ['/encoder3/smolgen/compress', '/const/encoder3/smolgen/compress/shape']
+  outputs: ['/encoder3/smolgen/compress/reshape']
+0192 /encoder3/smolgen/dense1/w (MatMul)
+  inputs: ['/encoder3/smolgen/compress/reshape', '/encoder3/smolgen/dense1/w/w']
+  outputs: ['/encoder3/smolgen/dense1/w']
+0193 /encoder3/smolgen/dense1/b (Add)
+  inputs: ['/encoder3/smolgen/dense1/w', '/encoder3/smolgen/dense1/b/w']
+  outputs: ['/encoder3/smolgen/dense1/b']
+0194 /encoder3/smolgen/dense1/swish/sigmoid (Sigmoid)
+  inputs: ['/encoder3/smolgen/dense1/b']
+  outputs: ['/encoder3/smolgen/dense1/swish/sigmoid']
+0195 /encoder3/smolgen/dense1/swish (Mul)
+  inputs: ['/encoder3/smolgen/dense1/swish/sigmoid', '/encoder3/smolgen/dense1/b']
+  outputs: ['/encoder3/smolgen/dense1/swish']
+0196 /encoder3/smolgen/ln1 (LayerNormalization)
+  inputs: ['/encoder3/smolgen/dense1/swish', '/encoder3/smolgen/ln1/w/scale', '/encoder3/smolgen/ln1/w/bias']
+  outputs: ['/encoder3/smolgen/ln1']
+0197 /encoder3/smolgen/dense2/w (MatMul)
+  inputs: ['/encoder3/smolgen/ln1', '/encoder3/smolgen/dense2/w/w']
+  outputs: ['/encoder3/smolgen/dense2/w']
+0198 /encoder3/smolgen/dense2/b (Add)
+  inputs: ['/encoder3/smolgen/dense2/w', '/encoder3/smolgen/dense2/b/w']
+  outputs: ['/encoder3/smolgen/dense2/b']
+0199 /encoder3/smolgen/dense2/swish/sigmoid (Sigmoid)
+  inputs: ['/encoder3/smolgen/dense2/b']
+  outputs: ['/encoder3/smolgen/dense2/swish/sigmoid']
+0200 /encoder3/smolgen/dense2/swish (Mul)
+  inputs: ['/encoder3/smolgen/dense2/swish/sigmoid', '/encoder3/smolgen/dense2/b']
+  outputs: ['/encoder3/smolgen/dense2/swish']
+0201 /encoder3/smolgen/ln2 (LayerNormalization)
+  inputs: ['/encoder3/smolgen/dense2/swish', '/encoder3/smolgen/ln2/w/scale', '/encoder3/smolgen/ln2/w/bias']
+  outputs: ['/encoder3/smolgen/ln2']
+0202 /encoder3/smolgen/gen_from/reshape (Reshape)
+  inputs: ['/encoder3/smolgen/ln2', '/const/encoder3/smolgen/gen_from/shape']
+  outputs: ['/encoder3/smolgen/gen_from/reshape']
+0203 /encoder3/smolgen/smol_weight_gen (MatMul)
+  inputs: ['/encoder3/smolgen/gen_from/reshape', '/const/smolgen_w']
+  outputs: ['/encoder3/smolgen/smol_weight_gen']
+0204 /encoder3/smolgen/out/reshape (Reshape)
+  inputs: ['/encoder3/smolgen/smol_weight_gen', '/const/encoder3/smolgen/out/shape']
+  outputs: ['/encoder3/smolgen/out/reshape']
+0205 /encoder3/smolgen_weights (Add)
+  inputs: ['/encoder3/mha/QK/scale', '/encoder3/smolgen/out/reshape']
+  outputs: ['/encoder3/smolgen_weights']
+0206 /encoder3/mha/QK/softmax (Softmax)
+  inputs: ['/encoder3/smolgen_weights']
+  outputs: ['/encoder3/mha/QK/softmax']
+0207 /encoder3/mha/QKV/matmul (MatMul)
+  inputs: ['/encoder3/mha/QK/softmax', '/encoder3/mha/V/transpose']
+  outputs: ['/encoder3/mha/QKV/matmul']
+0208 /encoder3/mha/out/transpose (Transpose)
+  inputs: ['/encoder3/mha/QKV/matmul']
+  outputs: ['/encoder3/mha/out/transpose']
+0209 /encoder3/mha/out/reshape (Reshape)
+  inputs: ['/encoder3/mha/out/transpose', '/const/encoder3/mha/out/shape']
+  outputs: ['/encoder3/mha/out/reshape']
+0210 /encoder3/mha/out/dense/w (MatMul)
+  inputs: ['/encoder3/mha/out/reshape', '/encoder3/mha/out/dense/w/w']
+  outputs: ['/encoder3/mha/out/dense/w']
+0211 /encoder3/mha/out/dense/b (Add)
+  inputs: ['/encoder3/mha/out/dense/w', '/encoder3/mha/out/dense/b/w']
+  outputs: ['/encoder3/mha/out/dense/b']
+0212 /encoder3/alpha*input (Mul)
+  inputs: ['/encoder3/mha/out/dense/b', '/encoder3/alpha*input/w']
+  outputs: ['/encoder3/alpha*input']
+0213 /encoder3/mha/out/skip (Add)
+  inputs: ['/encoder3/alpha*input', '/encoder2/ln2']
+  outputs: ['/encoder3/mha/out/skip']
+0214 /encoder3/ln1 (LayerNormalization)
+  inputs: ['/encoder3/mha/out/skip', '/encoder3/ln1/w/scale', '/encoder3/ln1/w/bias']
+  outputs: ['/encoder3/ln1']
+0215 /encoder3/ffn/dense1/w (MatMul)
+  inputs: ['/encoder3/ln1', '/encoder3/ffn/dense1/w/w']
+  outputs: ['/encoder3/ffn/dense1/w']
+0216 /encoder3/ffn/dense1/b (Add)
+  inputs: ['/encoder3/ffn/dense1/w', '/encoder3/ffn/dense1/b/w']
+  outputs: ['/encoder3/ffn/dense1/b']
+0217 /encoder3/ffn/dense1/mish/softplus (Softplus)
+  inputs: ['/encoder3/ffn/dense1/b']
+  outputs: ['/encoder3/ffn/dense1/mish/softplus']
+0218 /encoder3/ffn/dense1/mish/tanh (Tanh)
+  inputs: ['/encoder3/ffn/dense1/mish/softplus']
+  outputs: ['/encoder3/ffn/dense1/mish/tanh']
+0219 /encoder3/ffn/dense1/mish (Mul)
+  inputs: ['/encoder3/ffn/dense1/mish/tanh', '/encoder3/ffn/dense1/b']
+  outputs: ['/encoder3/ffn/dense1/mish']
+0220 /encoder3/ffn/dense2/w (MatMul)
+  inputs: ['/encoder3/ffn/dense1/mish', '/encoder3/ffn/dense2/w/w']
+  outputs: ['/encoder3/ffn/dense2/w']
+0221 /encoder3/ffn/dense2/b (Add)
+  inputs: ['/encoder3/ffn/dense2/w', '/encoder3/ffn/dense2/b/w']
+  outputs: ['/encoder3/ffn/dense2/b']
+0222 /encoder3/ffn/alpha (Mul)
+  inputs: ['/encoder3/ffn/dense2/b', '/encoder3/ffn/alpha/w']
+  outputs: ['/encoder3/ffn/alpha']
+0223 /encoder3/ffn/skip (Add)
+  inputs: ['/encoder3/ffn/alpha', '/encoder3/ln1']
+  outputs: ['/encoder3/ffn/skip']
+0224 /encoder3/ln2 (LayerNormalization)
+  inputs: ['/encoder3/ffn/skip', '/encoder3/ln2/w/scale', '/encoder3/ln2/w/bias']
+  outputs: ['/encoder3/ln2']
+0225 /encoder4/mha/Q/w (MatMul)
+  inputs: ['/encoder3/ln2', '/encoder4/mha/Q/w/w']
+  outputs: ['/encoder4/mha/Q/w']
+0226 /encoder4/mha/Q/b (Add)
+  inputs: ['/encoder4/mha/Q/w', '/encoder4/mha/Q/b/w']
+  outputs: ['/encoder4/mha/Q/b']
+0227 /encoder4/mha/Q/reshape (Reshape)
+  inputs: ['/encoder4/mha/Q/b', '/const/encoder4/mha/shape']
+  outputs: ['/encoder4/mha/Q/reshape']
+0228 /encoder4/mha/Q/transpose (Transpose)
+  inputs: ['/encoder4/mha/Q/reshape']
+  outputs: ['/encoder4/mha/Q/transpose']
+0229 /encoder4/mha/K/w (MatMul)
+  inputs: ['/encoder3/ln2', '/encoder4/mha/K/w/w']
+  outputs: ['/encoder4/mha/K/w']
+0230 /encoder4/mha/K/b (Add)
+  inputs: ['/encoder4/mha/K/w', '/encoder4/mha/K/b/w']
+  outputs: ['/encoder4/mha/K/b']
+0231 /encoder4/mha/K/reshape (Reshape)
+  inputs: ['/encoder4/mha/K/b', '/const/encoder4/mha/shape']
+  outputs: ['/encoder4/mha/K/reshape']
+0232 /encoder4/mha/K/transpose (Transpose)
+  inputs: ['/encoder4/mha/K/reshape']
+  outputs: ['/encoder4/mha/K/transpose']
+0233 /encoder4/mha/V/w (MatMul)
+  inputs: ['/encoder3/ln2', '/encoder4/mha/V/w/w']
+  outputs: ['/encoder4/mha/V/w']
+0234 /encoder4/mha/V/b (Add)
+  inputs: ['/encoder4/mha/V/w', '/encoder4/mha/V/b/w']
+  outputs: ['/encoder4/mha/V/b']
+0235 /encoder4/mha/V/reshape (Reshape)
+  inputs: ['/encoder4/mha/V/b', '/const/encoder4/mha/shape']
+  outputs: ['/encoder4/mha/V/reshape']
+0236 /encoder4/mha/V/transpose (Transpose)
+  inputs: ['/encoder4/mha/V/reshape']
+  outputs: ['/encoder4/mha/V/transpose']
+0237 /encoder4/mha/QK/matmul (MatMul)
+  inputs: ['/encoder4/mha/Q/transpose', '/encoder4/mha/K/transpose']
+  outputs: ['/encoder4/mha/QK/matmul']
+0238 /encoder4/mha/QK/scale (Mul)
+  inputs: ['/encoder4/mha/QK/matmul', '/encoder4/mha/QK/scale/w']
+  outputs: ['/encoder4/mha/QK/scale']
+0239 /encoder4/smolgen/compress (MatMul)
+  inputs: ['/encoder3/ln2', '/encoder4/smolgen/compress/w']
+  outputs: ['/encoder4/smolgen/compress']
+0240 /encoder4/smolgen/compress/reshape (Reshape)
+  inputs: ['/encoder4/smolgen/compress', '/const/encoder4/smolgen/compress/shape']
+  outputs: ['/encoder4/smolgen/compress/reshape']
+0241 /encoder4/smolgen/dense1/w (MatMul)
+  inputs: ['/encoder4/smolgen/compress/reshape', '/encoder4/smolgen/dense1/w/w']
+  outputs: ['/encoder4/smolgen/dense1/w']
+0242 /encoder4/smolgen/dense1/b (Add)
+  inputs: ['/encoder4/smolgen/dense1/w', '/encoder4/smolgen/dense1/b/w']
+  outputs: ['/encoder4/smolgen/dense1/b']
+0243 /encoder4/smolgen/dense1/swish/sigmoid (Sigmoid)
+  inputs: ['/encoder4/smolgen/dense1/b']
+  outputs: ['/encoder4/smolgen/dense1/swish/sigmoid']
+0244 /encoder4/smolgen/dense1/swish (Mul)
+  inputs: ['/encoder4/smolgen/dense1/swish/sigmoid', '/encoder4/smolgen/dense1/b']
+  outputs: ['/encoder4/smolgen/dense1/swish']
+0245 /encoder4/smolgen/ln1 (LayerNormalization)
+  inputs: ['/encoder4/smolgen/dense1/swish', '/encoder4/smolgen/ln1/w/scale', '/encoder4/smolgen/ln1/w/bias']
+  outputs: ['/encoder4/smolgen/ln1']
+0246 /encoder4/smolgen/dense2/w (MatMul)
+  inputs: ['/encoder4/smolgen/ln1', '/encoder4/smolgen/dense2/w/w']
+  outputs: ['/encoder4/smolgen/dense2/w']
+0247 /encoder4/smolgen/dense2/b (Add)
+  inputs: ['/encoder4/smolgen/dense2/w', '/encoder4/smolgen/dense2/b/w']
+  outputs: ['/encoder4/smolgen/dense2/b']
+0248 /encoder4/smolgen/dense2/swish/sigmoid (Sigmoid)
+  inputs: ['/encoder4/smolgen/dense2/b']
+  outputs: ['/encoder4/smolgen/dense2/swish/sigmoid']
+0249 /encoder4/smolgen/dense2/swish (Mul)
+  inputs: ['/encoder4/smolgen/dense2/swish/sigmoid', '/encoder4/smolgen/dense2/b']
+  outputs: ['/encoder4/smolgen/dense2/swish']
+0250 /encoder4/smolgen/ln2 (LayerNormalization)
+  inputs: ['/encoder4/smolgen/dense2/swish', '/encoder4/smolgen/ln2/w/scale', '/encoder4/smolgen/ln2/w/bias']
+  outputs: ['/encoder4/smolgen/ln2']
+0251 /encoder4/smolgen/gen_from/reshape (Reshape)
+  inputs: ['/encoder4/smolgen/ln2', '/const/encoder4/smolgen/gen_from/shape']
+  outputs: ['/encoder4/smolgen/gen_from/reshape']
+0252 /encoder4/smolgen/smol_weight_gen (MatMul)
+  inputs: ['/encoder4/smolgen/gen_from/reshape', '/const/smolgen_w']
+  outputs: ['/encoder4/smolgen/smol_weight_gen']
+0253 /encoder4/smolgen/out/reshape (Reshape)
+  inputs: ['/encoder4/smolgen/smol_weight_gen', '/const/encoder4/smolgen/out/shape']
+  outputs: ['/encoder4/smolgen/out/reshape']
+0254 /encoder4/smolgen_weights (Add)
+  inputs: ['/encoder4/mha/QK/scale', '/encoder4/smolgen/out/reshape']
+  outputs: ['/encoder4/smolgen_weights']
+0255 /encoder4/mha/QK/softmax (Softmax)
+  inputs: ['/encoder4/smolgen_weights']
+  outputs: ['/encoder4/mha/QK/softmax']
+0256 /encoder4/mha/QKV/matmul (MatMul)
+  inputs: ['/encoder4/mha/QK/softmax', '/encoder4/mha/V/transpose']
+  outputs: ['/encoder4/mha/QKV/matmul']
+0257 /encoder4/mha/out/transpose (Transpose)
+  inputs: ['/encoder4/mha/QKV/matmul']
+  outputs: ['/encoder4/mha/out/transpose']
+0258 /encoder4/mha/out/reshape (Reshape)
+  inputs: ['/encoder4/mha/out/transpose', '/const/encoder4/mha/out/shape']
+  outputs: ['/encoder4/mha/out/reshape']
+0259 /encoder4/mha/out/dense/w (MatMul)
+  inputs: ['/encoder4/mha/out/reshape', '/encoder4/mha/out/dense/w/w']
+  outputs: ['/encoder4/mha/out/dense/w']
+0260 /encoder4/mha/out/dense/b (Add)
+  inputs: ['/encoder4/mha/out/dense/w', '/encoder4/mha/out/dense/b/w']
+  outputs: ['/encoder4/mha/out/dense/b']
+0261 /encoder4/alpha*input (Mul)
+  inputs: ['/encoder4/mha/out/dense/b', '/encoder4/alpha*input/w']
+  outputs: ['/encoder4/alpha*input']
+0262 /encoder4/mha/out/skip (Add)
+  inputs: ['/encoder4/alpha*input', '/encoder3/ln2']
+  outputs: ['/encoder4/mha/out/skip']
+0263 /encoder4/ln1 (LayerNormalization)
+  inputs: ['/encoder4/mha/out/skip', '/encoder4/ln1/w/scale', '/encoder4/ln1/w/bias']
+  outputs: ['/encoder4/ln1']
+0264 /encoder4/ffn/dense1/w (MatMul)
+  inputs: ['/encoder4/ln1', '/encoder4/ffn/dense1/w/w']
+  outputs: ['/encoder4/ffn/dense1/w']
+0265 /encoder4/ffn/dense1/b (Add)
+  inputs: ['/encoder4/ffn/dense1/w', '/encoder4/ffn/dense1/b/w']
+  outputs: ['/encoder4/ffn/dense1/b']
+0266 /encoder4/ffn/dense1/mish/softplus (Softplus)
+  inputs: ['/encoder4/ffn/dense1/b']
+  outputs: ['/encoder4/ffn/dense1/mish/softplus']
+0267 /encoder4/ffn/dense1/mish/tanh (Tanh)
+  inputs: ['/encoder4/ffn/dense1/mish/softplus']
+  outputs: ['/encoder4/ffn/dense1/mish/tanh']
+0268 /encoder4/ffn/dense1/mish (Mul)
+  inputs: ['/encoder4/ffn/dense1/mish/tanh', '/encoder4/ffn/dense1/b']
+  outputs: ['/encoder4/ffn/dense1/mish']
+0269 /encoder4/ffn/dense2/w (MatMul)
+  inputs: ['/encoder4/ffn/dense1/mish', '/encoder4/ffn/dense2/w/w']
+  outputs: ['/encoder4/ffn/dense2/w']
+0270 /encoder4/ffn/dense2/b (Add)
+  inputs: ['/encoder4/ffn/dense2/w', '/encoder4/ffn/dense2/b/w']
+  outputs: ['/encoder4/ffn/dense2/b']
+0271 /encoder4/ffn/alpha (Mul)
+  inputs: ['/encoder4/ffn/dense2/b', '/encoder4/ffn/alpha/w']
+  outputs: ['/encoder4/ffn/alpha']
+0272 /encoder4/ffn/skip (Add)
+  inputs: ['/encoder4/ffn/alpha', '/encoder4/ln1']
+  outputs: ['/encoder4/ffn/skip']
+0273 /encoder4/ln2 (LayerNormalization)
+  inputs: ['/encoder4/ffn/skip', '/encoder4/ln2/w/scale', '/encoder4/ln2/w/bias']
+  outputs: ['/encoder4/ln2']
+0274 /encoder5/mha/Q/w (MatMul)
+  inputs: ['/encoder4/ln2', '/encoder5/mha/Q/w/w']
+  outputs: ['/encoder5/mha/Q/w']
+0275 /encoder5/mha/Q/b (Add)
+  inputs: ['/encoder5/mha/Q/w', '/encoder5/mha/Q/b/w']
+  outputs: ['/encoder5/mha/Q/b']
+0276 /encoder5/mha/Q/reshape (Reshape)
+  inputs: ['/encoder5/mha/Q/b', '/const/encoder5/mha/shape']
+  outputs: ['/encoder5/mha/Q/reshape']
+0277 /encoder5/mha/Q/transpose (Transpose)
+  inputs: ['/encoder5/mha/Q/reshape']
+  outputs: ['/encoder5/mha/Q/transpose']
+0278 /encoder5/mha/K/w (MatMul)
+  inputs: ['/encoder4/ln2', '/encoder5/mha/K/w/w']
+  outputs: ['/encoder5/mha/K/w']
+0279 /encoder5/mha/K/b (Add)
+  inputs: ['/encoder5/mha/K/w', '/encoder5/mha/K/b/w']
+  outputs: ['/encoder5/mha/K/b']
+0280 /encoder5/mha/K/reshape (Reshape)
+  inputs: ['/encoder5/mha/K/b', '/const/encoder5/mha/shape']
+  outputs: ['/encoder5/mha/K/reshape']
+0281 /encoder5/mha/K/transpose (Transpose)
+  inputs: ['/encoder5/mha/K/reshape']
+  outputs: ['/encoder5/mha/K/transpose']
+0282 /encoder5/mha/V/w (MatMul)
+  inputs: ['/encoder4/ln2', '/encoder5/mha/V/w/w']
+  outputs: ['/encoder5/mha/V/w']
+0283 /encoder5/mha/V/b (Add)
+  inputs: ['/encoder5/mha/V/w', '/encoder5/mha/V/b/w']
+  outputs: ['/encoder5/mha/V/b']
+0284 /encoder5/mha/V/reshape (Reshape)
+  inputs: ['/encoder5/mha/V/b', '/const/encoder5/mha/shape']
+  outputs: ['/encoder5/mha/V/reshape']
+0285 /encoder5/mha/V/transpose (Transpose)
+  inputs: ['/encoder5/mha/V/reshape']
+  outputs: ['/encoder5/mha/V/transpose']
+0286 /encoder5/mha/QK/matmul (MatMul)
+  inputs: ['/encoder5/mha/Q/transpose', '/encoder5/mha/K/transpose']
+  outputs: ['/encoder5/mha/QK/matmul']
+0287 /encoder5/mha/QK/scale (Mul)
+  inputs: ['/encoder5/mha/QK/matmul', '/encoder5/mha/QK/scale/w']
+  outputs: ['/encoder5/mha/QK/scale']
+0288 /encoder5/smolgen/compress (MatMul)
+  inputs: ['/encoder4/ln2', '/encoder5/smolgen/compress/w']
+  outputs: ['/encoder5/smolgen/compress']
+0289 /encoder5/smolgen/compress/reshape (Reshape)
+  inputs: ['/encoder5/smolgen/compress', '/const/encoder5/smolgen/compress/shape']
+  outputs: ['/encoder5/smolgen/compress/reshape']
+0290 /encoder5/smolgen/dense1/w (MatMul)
+  inputs: ['/encoder5/smolgen/compress/reshape', '/encoder5/smolgen/dense1/w/w']
+  outputs: ['/encoder5/smolgen/dense1/w']
+0291 /encoder5/smolgen/dense1/b (Add)
+  inputs: ['/encoder5/smolgen/dense1/w', '/encoder5/smolgen/dense1/b/w']
+  outputs: ['/encoder5/smolgen/dense1/b']
+0292 /encoder5/smolgen/dense1/swish/sigmoid (Sigmoid)
+  inputs: ['/encoder5/smolgen/dense1/b']
+  outputs: ['/encoder5/smolgen/dense1/swish/sigmoid']
+0293 /encoder5/smolgen/dense1/swish (Mul)
+  inputs: ['/encoder5/smolgen/dense1/swish/sigmoid', '/encoder5/smolgen/dense1/b']
+  outputs: ['/encoder5/smolgen/dense1/swish']
+0294 /encoder5/smolgen/ln1 (LayerNormalization)
+  inputs: ['/encoder5/smolgen/dense1/swish', '/encoder5/smolgen/ln1/w/scale', '/encoder5/smolgen/ln1/w/bias']
+  outputs: ['/encoder5/smolgen/ln1']
+0295 /encoder5/smolgen/dense2/w (MatMul)
+  inputs: ['/encoder5/smolgen/ln1', '/encoder5/smolgen/dense2/w/w']
+  outputs: ['/encoder5/smolgen/dense2/w']
+0296 /encoder5/smolgen/dense2/b (Add)
+  inputs: ['/encoder5/smolgen/dense2/w', '/encoder5/smolgen/dense2/b/w']
+  outputs: ['/encoder5/smolgen/dense2/b']
+0297 /encoder5/smolgen/dense2/swish/sigmoid (Sigmoid)
+  inputs: ['/encoder5/smolgen/dense2/b']
+  outputs: ['/encoder5/smolgen/dense2/swish/sigmoid']
+0298 /encoder5/smolgen/dense2/swish (Mul)
+  inputs: ['/encoder5/smolgen/dense2/swish/sigmoid', '/encoder5/smolgen/dense2/b']
+  outputs: ['/encoder5/smolgen/dense2/swish']
+0299 /encoder5/smolgen/ln2 (LayerNormalization)
+  inputs: ['/encoder5/smolgen/dense2/swish', '/encoder5/smolgen/ln2/w/scale', '/encoder5/smolgen/ln2/w/bias']
+  outputs: ['/encoder5/smolgen/ln2']
+0300 /encoder5/smolgen/gen_from/reshape (Reshape)
+  inputs: ['/encoder5/smolgen/ln2', '/const/encoder5/smolgen/gen_from/shape']
+  outputs: ['/encoder5/smolgen/gen_from/reshape']
+0301 /encoder5/smolgen/smol_weight_gen (MatMul)
+  inputs: ['/encoder5/smolgen/gen_from/reshape', '/const/smolgen_w']
+  outputs: ['/encoder5/smolgen/smol_weight_gen']
+0302 /encoder5/smolgen/out/reshape (Reshape)
+  inputs: ['/encoder5/smolgen/smol_weight_gen', '/const/encoder5/smolgen/out/shape']
+  outputs: ['/encoder5/smolgen/out/reshape']
+0303 /encoder5/smolgen_weights (Add)
+  inputs: ['/encoder5/mha/QK/scale', '/encoder5/smolgen/out/reshape']
+  outputs: ['/encoder5/smolgen_weights']
+0304 /encoder5/mha/QK/softmax (Softmax)
+  inputs: ['/encoder5/smolgen_weights']
+  outputs: ['/encoder5/mha/QK/softmax']
+0305 /encoder5/mha/QKV/matmul (MatMul)
+  inputs: ['/encoder5/mha/QK/softmax', '/encoder5/mha/V/transpose']
+  outputs: ['/encoder5/mha/QKV/matmul']
+0306 /encoder5/mha/out/transpose (Transpose)
+  inputs: ['/encoder5/mha/QKV/matmul']
+  outputs: ['/encoder5/mha/out/transpose']
+0307 /encoder5/mha/out/reshape (Reshape)
+  inputs: ['/encoder5/mha/out/transpose', '/const/encoder5/mha/out/shape']
+  outputs: ['/encoder5/mha/out/reshape']
+0308 /encoder5/mha/out/dense/w (MatMul)
+  inputs: ['/encoder5/mha/out/reshape', '/encoder5/mha/out/dense/w/w']
+  outputs: ['/encoder5/mha/out/dense/w']
+0309 /encoder5/mha/out/dense/b (Add)
+  inputs: ['/encoder5/mha/out/dense/w', '/encoder5/mha/out/dense/b/w']
+  outputs: ['/encoder5/mha/out/dense/b']
+0310 /encoder5/alpha*input (Mul)
+  inputs: ['/encoder5/mha/out/dense/b', '/encoder5/alpha*input/w']
+  outputs: ['/encoder5/alpha*input']
+0311 /encoder5/mha/out/skip (Add)
+  inputs: ['/encoder5/alpha*input', '/encoder4/ln2']
+  outputs: ['/encoder5/mha/out/skip']
+0312 /encoder5/ln1 (LayerNormalization)
+  inputs: ['/encoder5/mha/out/skip', '/encoder5/ln1/w/scale', '/encoder5/ln1/w/bias']
+  outputs: ['/encoder5/ln1']
+0313 /encoder5/ffn/dense1/w (MatMul)
+  inputs: ['/encoder5/ln1', '/encoder5/ffn/dense1/w/w']
+  outputs: ['/encoder5/ffn/dense1/w']
+0314 /encoder5/ffn/dense1/b (Add)
+  inputs: ['/encoder5/ffn/dense1/w', '/encoder5/ffn/dense1/b/w']
+  outputs: ['/encoder5/ffn/dense1/b']
+0315 /encoder5/ffn/dense1/mish/softplus (Softplus)
+  inputs: ['/encoder5/ffn/dense1/b']
+  outputs: ['/encoder5/ffn/dense1/mish/softplus']
+0316 /encoder5/ffn/dense1/mish/tanh (Tanh)
+  inputs: ['/encoder5/ffn/dense1/mish/softplus']
+  outputs: ['/encoder5/ffn/dense1/mish/tanh']
+0317 /encoder5/ffn/dense1/mish (Mul)
+  inputs: ['/encoder5/ffn/dense1/mish/tanh', '/encoder5/ffn/dense1/b']
+  outputs: ['/encoder5/ffn/dense1/mish']
+0318 /encoder5/ffn/dense2/w (MatMul)
+  inputs: ['/encoder5/ffn/dense1/mish', '/encoder5/ffn/dense2/w/w']
+  outputs: ['/encoder5/ffn/dense2/w']
+0319 /encoder5/ffn/dense2/b (Add)
+  inputs: ['/encoder5/ffn/dense2/w', '/encoder5/ffn/dense2/b/w']
+  outputs: ['/encoder5/ffn/dense2/b']
+0320 /encoder5/ffn/alpha (Mul)
+  inputs: ['/encoder5/ffn/dense2/b', '/encoder5/ffn/alpha/w']
+  outputs: ['/encoder5/ffn/alpha']
+0321 /encoder5/ffn/skip (Add)
+  inputs: ['/encoder5/ffn/alpha', '/encoder5/ln1']
+  outputs: ['/encoder5/ffn/skip']
+0322 /encoder5/ln2 (LayerNormalization)
+  inputs: ['/encoder5/ffn/skip', '/encoder5/ln2/w/scale', '/encoder5/ln2/w/bias']
+  outputs: ['/encoder5/ln2']
+0323 /encoder6/mha/Q/w (MatMul)
+  inputs: ['/encoder5/ln2', '/encoder6/mha/Q/w/w']
+  outputs: ['/encoder6/mha/Q/w']
+0324 /encoder6/mha/Q/b (Add)
+  inputs: ['/encoder6/mha/Q/w', '/encoder6/mha/Q/b/w']
+  outputs: ['/encoder6/mha/Q/b']
+0325 /encoder6/mha/Q/reshape (Reshape)
+  inputs: ['/encoder6/mha/Q/b', '/const/encoder6/mha/shape']
+  outputs: ['/encoder6/mha/Q/reshape']
+0326 /encoder6/mha/Q/transpose (Transpose)
+  inputs: ['/encoder6/mha/Q/reshape']
+  outputs: ['/encoder6/mha/Q/transpose']
+0327 /encoder6/mha/K/w (MatMul)
+  inputs: ['/encoder5/ln2', '/encoder6/mha/K/w/w']
+  outputs: ['/encoder6/mha/K/w']
+0328 /encoder6/mha/K/b (Add)
+  inputs: ['/encoder6/mha/K/w', '/encoder6/mha/K/b/w']
+  outputs: ['/encoder6/mha/K/b']
+0329 /encoder6/mha/K/reshape (Reshape)
+  inputs: ['/encoder6/mha/K/b', '/const/encoder6/mha/shape']
+  outputs: ['/encoder6/mha/K/reshape']
+0330 /encoder6/mha/K/transpose (Transpose)
+  inputs: ['/encoder6/mha/K/reshape']
+  outputs: ['/encoder6/mha/K/transpose']
+0331 /encoder6/mha/V/w (MatMul)
+  inputs: ['/encoder5/ln2', '/encoder6/mha/V/w/w']
+  outputs: ['/encoder6/mha/V/w']
+0332 /encoder6/mha/V/b (Add)
+  inputs: ['/encoder6/mha/V/w', '/encoder6/mha/V/b/w']
+  outputs: ['/encoder6/mha/V/b']
+0333 /encoder6/mha/V/reshape (Reshape)
+  inputs: ['/encoder6/mha/V/b', '/const/encoder6/mha/shape']
+  outputs: ['/encoder6/mha/V/reshape']
+0334 /encoder6/mha/V/transpose (Transpose)
+  inputs: ['/encoder6/mha/V/reshape']
+  outputs: ['/encoder6/mha/V/transpose']
+0335 /encoder6/mha/QK/matmul (MatMul)
+  inputs: ['/encoder6/mha/Q/transpose', '/encoder6/mha/K/transpose']
+  outputs: ['/encoder6/mha/QK/matmul']
+0336 /encoder6/mha/QK/scale (Mul)
+  inputs: ['/encoder6/mha/QK/matmul', '/encoder6/mha/QK/scale/w']
+  outputs: ['/encoder6/mha/QK/scale']
+0337 /encoder6/smolgen/compress (MatMul)
+  inputs: ['/encoder5/ln2', '/encoder6/smolgen/compress/w']
+  outputs: ['/encoder6/smolgen/compress']
+0338 /encoder6/smolgen/compress/reshape (Reshape)
+  inputs: ['/encoder6/smolgen/compress', '/const/encoder6/smolgen/compress/shape']
+  outputs: ['/encoder6/smolgen/compress/reshape']
+0339 /encoder6/smolgen/dense1/w (MatMul)
+  inputs: ['/encoder6/smolgen/compress/reshape', '/encoder6/smolgen/dense1/w/w']
+  outputs: ['/encoder6/smolgen/dense1/w']
+0340 /encoder6/smolgen/dense1/b (Add)
+  inputs: ['/encoder6/smolgen/dense1/w', '/encoder6/smolgen/dense1/b/w']
+  outputs: ['/encoder6/smolgen/dense1/b']
+0341 /encoder6/smolgen/dense1/swish/sigmoid (Sigmoid)
+  inputs: ['/encoder6/smolgen/dense1/b']
+  outputs: ['/encoder6/smolgen/dense1/swish/sigmoid']
+0342 /encoder6/smolgen/dense1/swish (Mul)
+  inputs: ['/encoder6/smolgen/dense1/swish/sigmoid', '/encoder6/smolgen/dense1/b']
+  outputs: ['/encoder6/smolgen/dense1/swish']
+0343 /encoder6/smolgen/ln1 (LayerNormalization)
+  inputs: ['/encoder6/smolgen/dense1/swish', '/encoder6/smolgen/ln1/w/scale', '/encoder6/smolgen/ln1/w/bias']
+  outputs: ['/encoder6/smolgen/ln1']
+0344 /encoder6/smolgen/dense2/w (MatMul)
+  inputs: ['/encoder6/smolgen/ln1', '/encoder6/smolgen/dense2/w/w']
+  outputs: ['/encoder6/smolgen/dense2/w']
+0345 /encoder6/smolgen/dense2/b (Add)
+  inputs: ['/encoder6/smolgen/dense2/w', '/encoder6/smolgen/dense2/b/w']
+  outputs: ['/encoder6/smolgen/dense2/b']
+0346 /encoder6/smolgen/dense2/swish/sigmoid (Sigmoid)
+  inputs: ['/encoder6/smolgen/dense2/b']
+  outputs: ['/encoder6/smolgen/dense2/swish/sigmoid']
+0347 /encoder6/smolgen/dense2/swish (Mul)
+  inputs: ['/encoder6/smolgen/dense2/swish/sigmoid', '/encoder6/smolgen/dense2/b']
+  outputs: ['/encoder6/smolgen/dense2/swish']
+0348 /encoder6/smolgen/ln2 (LayerNormalization)
+  inputs: ['/encoder6/smolgen/dense2/swish', '/encoder6/smolgen/ln2/w/scale', '/encoder6/smolgen/ln2/w/bias']
+  outputs: ['/encoder6/smolgen/ln2']
+0349 /encoder6/smolgen/gen_from/reshape (Reshape)
+  inputs: ['/encoder6/smolgen/ln2', '/const/encoder6/smolgen/gen_from/shape']
+  outputs: ['/encoder6/smolgen/gen_from/reshape']
+0350 /encoder6/smolgen/smol_weight_gen (MatMul)
+  inputs: ['/encoder6/smolgen/gen_from/reshape', '/const/smolgen_w']
+  outputs: ['/encoder6/smolgen/smol_weight_gen']
+0351 /encoder6/smolgen/out/reshape (Reshape)
+  inputs: ['/encoder6/smolgen/smol_weight_gen', '/const/encoder6/smolgen/out/shape']
+  outputs: ['/encoder6/smolgen/out/reshape']
+0352 /encoder6/smolgen_weights (Add)
+  inputs: ['/encoder6/mha/QK/scale', '/encoder6/smolgen/out/reshape']
+  outputs: ['/encoder6/smolgen_weights']
+0353 /encoder6/mha/QK/softmax (Softmax)
+  inputs: ['/encoder6/smolgen_weights']
+  outputs: ['/encoder6/mha/QK/softmax']
+0354 /encoder6/mha/QKV/matmul (MatMul)
+  inputs: ['/encoder6/mha/QK/softmax', '/encoder6/mha/V/transpose']
+  outputs: ['/encoder6/mha/QKV/matmul']
+0355 /encoder6/mha/out/transpose (Transpose)
+  inputs: ['/encoder6/mha/QKV/matmul']
+  outputs: ['/encoder6/mha/out/transpose']
+0356 /encoder6/mha/out/reshape (Reshape)
+  inputs: ['/encoder6/mha/out/transpose', '/const/encoder6/mha/out/shape']
+  outputs: ['/encoder6/mha/out/reshape']
+0357 /encoder6/mha/out/dense/w (MatMul)
+  inputs: ['/encoder6/mha/out/reshape', '/encoder6/mha/out/dense/w/w']
+  outputs: ['/encoder6/mha/out/dense/w']
+0358 /encoder6/mha/out/dense/b (Add)
+  inputs: ['/encoder6/mha/out/dense/w', '/encoder6/mha/out/dense/b/w']
+  outputs: ['/encoder6/mha/out/dense/b']
+0359 /encoder6/alpha*input (Mul)
+  inputs: ['/encoder6/mha/out/dense/b', '/encoder6/alpha*input/w']
+  outputs: ['/encoder6/alpha*input']
+0360 /encoder6/mha/out/skip (Add)
+  inputs: ['/encoder6/alpha*input', '/encoder5/ln2']
+  outputs: ['/encoder6/mha/out/skip']
+0361 /encoder6/ln1 (LayerNormalization)
+  inputs: ['/encoder6/mha/out/skip', '/encoder6/ln1/w/scale', '/encoder6/ln1/w/bias']
+  outputs: ['/encoder6/ln1']
+0362 /encoder6/ffn/dense1/w (MatMul)
+  inputs: ['/encoder6/ln1', '/encoder6/ffn/dense1/w/w']
+  outputs: ['/encoder6/ffn/dense1/w']
+0363 /encoder6/ffn/dense1/b (Add)
+  inputs: ['/encoder6/ffn/dense1/w', '/encoder6/ffn/dense1/b/w']
+  outputs: ['/encoder6/ffn/dense1/b']
+0364 /encoder6/ffn/dense1/mish/softplus (Softplus)
+  inputs: ['/encoder6/ffn/dense1/b']
+  outputs: ['/encoder6/ffn/dense1/mish/softplus']
+0365 /encoder6/ffn/dense1/mish/tanh (Tanh)
+  inputs: ['/encoder6/ffn/dense1/mish/softplus']
+  outputs: ['/encoder6/ffn/dense1/mish/tanh']
+0366 /encoder6/ffn/dense1/mish (Mul)
+  inputs: ['/encoder6/ffn/dense1/mish/tanh', '/encoder6/ffn/dense1/b']
+  outputs: ['/encoder6/ffn/dense1/mish']
+0367 /encoder6/ffn/dense2/w (MatMul)
+  inputs: ['/encoder6/ffn/dense1/mish', '/encoder6/ffn/dense2/w/w']
+  outputs: ['/encoder6/ffn/dense2/w']
+0368 /encoder6/ffn/dense2/b (Add)
+  inputs: ['/encoder6/ffn/dense2/w', '/encoder6/ffn/dense2/b/w']
+  outputs: ['/encoder6/ffn/dense2/b']
+0369 /encoder6/ffn/alpha (Mul)
+  inputs: ['/encoder6/ffn/dense2/b', '/encoder6/ffn/alpha/w']
+  outputs: ['/encoder6/ffn/alpha']
+0370 /encoder6/ffn/skip (Add)
+  inputs: ['/encoder6/ffn/alpha', '/encoder6/ln1']
+  outputs: ['/encoder6/ffn/skip']
+0371 /encoder6/ln2 (LayerNormalization)
+  inputs: ['/encoder6/ffn/skip', '/encoder6/ln2/w/scale', '/encoder6/ln2/w/bias']
+  outputs: ['/encoder6/ln2']
+0372 /encoder7/mha/Q/w (MatMul)
+  inputs: ['/encoder6/ln2', '/encoder7/mha/Q/w/w']
+  outputs: ['/encoder7/mha/Q/w']
+0373 /encoder7/mha/Q/b (Add)
+  inputs: ['/encoder7/mha/Q/w', '/encoder7/mha/Q/b/w']
+  outputs: ['/encoder7/mha/Q/b']
+0374 /encoder7/mha/Q/reshape (Reshape)
+  inputs: ['/encoder7/mha/Q/b', '/const/encoder7/mha/shape']
+  outputs: ['/encoder7/mha/Q/reshape']
+0375 /encoder7/mha/Q/transpose (Transpose)
+  inputs: ['/encoder7/mha/Q/reshape']
+  outputs: ['/encoder7/mha/Q/transpose']
+0376 /encoder7/mha/K/w (MatMul)
+  inputs: ['/encoder6/ln2', '/encoder7/mha/K/w/w']
+  outputs: ['/encoder7/mha/K/w']
+0377 /encoder7/mha/K/b (Add)
+  inputs: ['/encoder7/mha/K/w', '/encoder7/mha/K/b/w']
+  outputs: ['/encoder7/mha/K/b']
+0378 /encoder7/mha/K/reshape (Reshape)
+  inputs: ['/encoder7/mha/K/b', '/const/encoder7/mha/shape']
+  outputs: ['/encoder7/mha/K/reshape']
+0379 /encoder7/mha/K/transpose (Transpose)
+  inputs: ['/encoder7/mha/K/reshape']
+  outputs: ['/encoder7/mha/K/transpose']
+0380 /encoder7/mha/V/w (MatMul)
+  inputs: ['/encoder6/ln2', '/encoder7/mha/V/w/w']
+  outputs: ['/encoder7/mha/V/w']
+0381 /encoder7/mha/V/b (Add)
+  inputs: ['/encoder7/mha/V/w', '/encoder7/mha/V/b/w']
+  outputs: ['/encoder7/mha/V/b']
+0382 /encoder7/mha/V/reshape (Reshape)
+  inputs: ['/encoder7/mha/V/b', '/const/encoder7/mha/shape']
+  outputs: ['/encoder7/mha/V/reshape']
+0383 /encoder7/mha/V/transpose (Transpose)
+  inputs: ['/encoder7/mha/V/reshape']
+  outputs: ['/encoder7/mha/V/transpose']
+0384 /encoder7/mha/QK/matmul (MatMul)
+  inputs: ['/encoder7/mha/Q/transpose', '/encoder7/mha/K/transpose']
+  outputs: ['/encoder7/mha/QK/matmul']
+0385 /encoder7/mha/QK/scale (Mul)
+  inputs: ['/encoder7/mha/QK/matmul', '/encoder7/mha/QK/scale/w']
+  outputs: ['/encoder7/mha/QK/scale']
+0386 /encoder7/smolgen/compress (MatMul)
+  inputs: ['/encoder6/ln2', '/encoder7/smolgen/compress/w']
+  outputs: ['/encoder7/smolgen/compress']
+0387 /encoder7/smolgen/compress/reshape (Reshape)
+  inputs: ['/encoder7/smolgen/compress', '/const/encoder7/smolgen/compress/shape']
+  outputs: ['/encoder7/smolgen/compress/reshape']
+0388 /encoder7/smolgen/dense1/w (MatMul)
+  inputs: ['/encoder7/smolgen/compress/reshape', '/encoder7/smolgen/dense1/w/w']
+  outputs: ['/encoder7/smolgen/dense1/w']
+0389 /encoder7/smolgen/dense1/b (Add)
+  inputs: ['/encoder7/smolgen/dense1/w', '/encoder7/smolgen/dense1/b/w']
+  outputs: ['/encoder7/smolgen/dense1/b']
+0390 /encoder7/smolgen/dense1/swish/sigmoid (Sigmoid)
+  inputs: ['/encoder7/smolgen/dense1/b']
+  outputs: ['/encoder7/smolgen/dense1/swish/sigmoid']
+0391 /encoder7/smolgen/dense1/swish (Mul)
+  inputs: ['/encoder7/smolgen/dense1/swish/sigmoid', '/encoder7/smolgen/dense1/b']
+  outputs: ['/encoder7/smolgen/dense1/swish']
+0392 /encoder7/smolgen/ln1 (LayerNormalization)
+  inputs: ['/encoder7/smolgen/dense1/swish', '/encoder7/smolgen/ln1/w/scale', '/encoder7/smolgen/ln1/w/bias']
+  outputs: ['/encoder7/smolgen/ln1']
+0393 /encoder7/smolgen/dense2/w (MatMul)
+  inputs: ['/encoder7/smolgen/ln1', '/encoder7/smolgen/dense2/w/w']
+  outputs: ['/encoder7/smolgen/dense2/w']
+0394 /encoder7/smolgen/dense2/b (Add)
+  inputs: ['/encoder7/smolgen/dense2/w', '/encoder7/smolgen/dense2/b/w']
+  outputs: ['/encoder7/smolgen/dense2/b']
+0395 /encoder7/smolgen/dense2/swish/sigmoid (Sigmoid)
+  inputs: ['/encoder7/smolgen/dense2/b']
+  outputs: ['/encoder7/smolgen/dense2/swish/sigmoid']
+0396 /encoder7/smolgen/dense2/swish (Mul)
+  inputs: ['/encoder7/smolgen/dense2/swish/sigmoid', '/encoder7/smolgen/dense2/b']
+  outputs: ['/encoder7/smolgen/dense2/swish']
+0397 /encoder7/smolgen/ln2 (LayerNormalization)
+  inputs: ['/encoder7/smolgen/dense2/swish', '/encoder7/smolgen/ln2/w/scale', '/encoder7/smolgen/ln2/w/bias']
+  outputs: ['/encoder7/smolgen/ln2']
+0398 /encoder7/smolgen/gen_from/reshape (Reshape)
+  inputs: ['/encoder7/smolgen/ln2', '/const/encoder7/smolgen/gen_from/shape']
+  outputs: ['/encoder7/smolgen/gen_from/reshape']
+0399 /encoder7/smolgen/smol_weight_gen (MatMul)
+  inputs: ['/encoder7/smolgen/gen_from/reshape', '/const/smolgen_w']
+  outputs: ['/encoder7/smolgen/smol_weight_gen']
+0400 /encoder7/smolgen/out/reshape (Reshape)
+  inputs: ['/encoder7/smolgen/smol_weight_gen', '/const/encoder7/smolgen/out/shape']
+  outputs: ['/encoder7/smolgen/out/reshape']
+0401 /encoder7/smolgen_weights (Add)
+  inputs: ['/encoder7/mha/QK/scale', '/encoder7/smolgen/out/reshape']
+  outputs: ['/encoder7/smolgen_weights']
+0402 /encoder7/mha/QK/softmax (Softmax)
+  inputs: ['/encoder7/smolgen_weights']
+  outputs: ['/encoder7/mha/QK/softmax']
+0403 /encoder7/mha/QKV/matmul (MatMul)
+  inputs: ['/encoder7/mha/QK/softmax', '/encoder7/mha/V/transpose']
+  outputs: ['/encoder7/mha/QKV/matmul']
+0404 /encoder7/mha/out/transpose (Transpose)
+  inputs: ['/encoder7/mha/QKV/matmul']
+  outputs: ['/encoder7/mha/out/transpose']
+0405 /encoder7/mha/out/reshape (Reshape)
+  inputs: ['/encoder7/mha/out/transpose', '/const/encoder7/mha/out/shape']
+  outputs: ['/encoder7/mha/out/reshape']
+0406 /encoder7/mha/out/dense/w (MatMul)
+  inputs: ['/encoder7/mha/out/reshape', '/encoder7/mha/out/dense/w/w']
+  outputs: ['/encoder7/mha/out/dense/w']
+0407 /encoder7/mha/out/dense/b (Add)
+  inputs: ['/encoder7/mha/out/dense/w', '/encoder7/mha/out/dense/b/w']
+  outputs: ['/encoder7/mha/out/dense/b']
+0408 /encoder7/alpha*input (Mul)
+  inputs: ['/encoder7/mha/out/dense/b', '/encoder7/alpha*input/w']
+  outputs: ['/encoder7/alpha*input']
+0409 /encoder7/mha/out/skip (Add)
+  inputs: ['/encoder7/alpha*input', '/encoder6/ln2']
+  outputs: ['/encoder7/mha/out/skip']
+0410 /encoder7/ln1 (LayerNormalization)
+  inputs: ['/encoder7/mha/out/skip', '/encoder7/ln1/w/scale', '/encoder7/ln1/w/bias']
+  outputs: ['/encoder7/ln1']
+0411 /encoder7/ffn/dense1/w (MatMul)
+  inputs: ['/encoder7/ln1', '/encoder7/ffn/dense1/w/w']
+  outputs: ['/encoder7/ffn/dense1/w']
+0412 /encoder7/ffn/dense1/b (Add)
+  inputs: ['/encoder7/ffn/dense1/w', '/encoder7/ffn/dense1/b/w']
+  outputs: ['/encoder7/ffn/dense1/b']
+0413 /encoder7/ffn/dense1/mish/softplus (Softplus)
+  inputs: ['/encoder7/ffn/dense1/b']
+  outputs: ['/encoder7/ffn/dense1/mish/softplus']
+0414 /encoder7/ffn/dense1/mish/tanh (Tanh)
+  inputs: ['/encoder7/ffn/dense1/mish/softplus']
+  outputs: ['/encoder7/ffn/dense1/mish/tanh']
+0415 /encoder7/ffn/dense1/mish (Mul)
+  inputs: ['/encoder7/ffn/dense1/mish/tanh', '/encoder7/ffn/dense1/b']
+  outputs: ['/encoder7/ffn/dense1/mish']
+0416 /encoder7/ffn/dense2/w (MatMul)
+  inputs: ['/encoder7/ffn/dense1/mish', '/encoder7/ffn/dense2/w/w']
+  outputs: ['/encoder7/ffn/dense2/w']
+0417 /encoder7/ffn/dense2/b (Add)
+  inputs: ['/encoder7/ffn/dense2/w', '/encoder7/ffn/dense2/b/w']
+  outputs: ['/encoder7/ffn/dense2/b']
+0418 /encoder7/ffn/alpha (Mul)
+  inputs: ['/encoder7/ffn/dense2/b', '/encoder7/ffn/alpha/w']
+  outputs: ['/encoder7/ffn/alpha']
+0419 /encoder7/ffn/skip (Add)
+  inputs: ['/encoder7/ffn/alpha', '/encoder7/ln1']
+  outputs: ['/encoder7/ffn/skip']
+0420 /encoder7/ln2 (LayerNormalization)
+  inputs: ['/encoder7/ffn/skip', '/encoder7/ln2/w/scale', '/encoder7/ln2/w/bias']
+  outputs: ['/encoder7/ln2']
+0421 /encoder8/mha/Q/w (MatMul)
+  inputs: ['/encoder7/ln2', '/encoder8/mha/Q/w/w']
+  outputs: ['/encoder8/mha/Q/w']
+0422 /encoder8/mha/Q/b (Add)
+  inputs: ['/encoder8/mha/Q/w', '/encoder8/mha/Q/b/w']
+  outputs: ['/encoder8/mha/Q/b']
+0423 /encoder8/mha/Q/reshape (Reshape)
+  inputs: ['/encoder8/mha/Q/b', '/const/encoder8/mha/shape']
+  outputs: ['/encoder8/mha/Q/reshape']
+0424 /encoder8/mha/Q/transpose (Transpose)
+  inputs: ['/encoder8/mha/Q/reshape']
+  outputs: ['/encoder8/mha/Q/transpose']
+0425 /encoder8/mha/K/w (MatMul)
+  inputs: ['/encoder7/ln2', '/encoder8/mha/K/w/w']
+  outputs: ['/encoder8/mha/K/w']
+0426 /encoder8/mha/K/b (Add)
+  inputs: ['/encoder8/mha/K/w', '/encoder8/mha/K/b/w']
+  outputs: ['/encoder8/mha/K/b']
+0427 /encoder8/mha/K/reshape (Reshape)
+  inputs: ['/encoder8/mha/K/b', '/const/encoder8/mha/shape']
+  outputs: ['/encoder8/mha/K/reshape']
+0428 /encoder8/mha/K/transpose (Transpose)
+  inputs: ['/encoder8/mha/K/reshape']
+  outputs: ['/encoder8/mha/K/transpose']
+0429 /encoder8/mha/V/w (MatMul)
+  inputs: ['/encoder7/ln2', '/encoder8/mha/V/w/w']
+  outputs: ['/encoder8/mha/V/w']
+0430 /encoder8/mha/V/b (Add)
+  inputs: ['/encoder8/mha/V/w', '/encoder8/mha/V/b/w']
+  outputs: ['/encoder8/mha/V/b']
+0431 /encoder8/mha/V/reshape (Reshape)
+  inputs: ['/encoder8/mha/V/b', '/const/encoder8/mha/shape']
+  outputs: ['/encoder8/mha/V/reshape']
+0432 /encoder8/mha/V/transpose (Transpose)
+  inputs: ['/encoder8/mha/V/reshape']
+  outputs: ['/encoder8/mha/V/transpose']
+0433 /encoder8/mha/QK/matmul (MatMul)
+  inputs: ['/encoder8/mha/Q/transpose', '/encoder8/mha/K/transpose']
+  outputs: ['/encoder8/mha/QK/matmul']
+0434 /encoder8/mha/QK/scale (Mul)
+  inputs: ['/encoder8/mha/QK/matmul', '/encoder8/mha/QK/scale/w']
+  outputs: ['/encoder8/mha/QK/scale']
+0435 /encoder8/smolgen/compress (MatMul)
+  inputs: ['/encoder7/ln2', '/encoder8/smolgen/compress/w']
+  outputs: ['/encoder8/smolgen/compress']
+0436 /encoder8/smolgen/compress/reshape (Reshape)
+  inputs: ['/encoder8/smolgen/compress', '/const/encoder8/smolgen/compress/shape']
+  outputs: ['/encoder8/smolgen/compress/reshape']
+0437 /encoder8/smolgen/dense1/w (MatMul)
+  inputs: ['/encoder8/smolgen/compress/reshape', '/encoder8/smolgen/dense1/w/w']
+  outputs: ['/encoder8/smolgen/dense1/w']
+0438 /encoder8/smolgen/dense1/b (Add)
+  inputs: ['/encoder8/smolgen/dense1/w', '/encoder8/smolgen/dense1/b/w']
+  outputs: ['/encoder8/smolgen/dense1/b']
+0439 /encoder8/smolgen/dense1/swish/sigmoid (Sigmoid)
+  inputs: ['/encoder8/smolgen/dense1/b']
+  outputs: ['/encoder8/smolgen/dense1/swish/sigmoid']
+0440 /encoder8/smolgen/dense1/swish (Mul)
+  inputs: ['/encoder8/smolgen/dense1/swish/sigmoid', '/encoder8/smolgen/dense1/b']
+  outputs: ['/encoder8/smolgen/dense1/swish']
+0441 /encoder8/smolgen/ln1 (LayerNormalization)
+  inputs: ['/encoder8/smolgen/dense1/swish', '/encoder8/smolgen/ln1/w/scale', '/encoder8/smolgen/ln1/w/bias']
+  outputs: ['/encoder8/smolgen/ln1']
+0442 /encoder8/smolgen/dense2/w (MatMul)
+  inputs: ['/encoder8/smolgen/ln1', '/encoder8/smolgen/dense2/w/w']
+  outputs: ['/encoder8/smolgen/dense2/w']
+0443 /encoder8/smolgen/dense2/b (Add)
+  inputs: ['/encoder8/smolgen/dense2/w', '/encoder8/smolgen/dense2/b/w']
+  outputs: ['/encoder8/smolgen/dense2/b']
+0444 /encoder8/smolgen/dense2/swish/sigmoid (Sigmoid)
+  inputs: ['/encoder8/smolgen/dense2/b']
+  outputs: ['/encoder8/smolgen/dense2/swish/sigmoid']
+0445 /encoder8/smolgen/dense2/swish (Mul)
+  inputs: ['/encoder8/smolgen/dense2/swish/sigmoid', '/encoder8/smolgen/dense2/b']
+  outputs: ['/encoder8/smolgen/dense2/swish']
+0446 /encoder8/smolgen/ln2 (LayerNormalization)
+  inputs: ['/encoder8/smolgen/dense2/swish', '/encoder8/smolgen/ln2/w/scale', '/encoder8/smolgen/ln2/w/bias']
+  outputs: ['/encoder8/smolgen/ln2']
+0447 /encoder8/smolgen/gen_from/reshape (Reshape)
+  inputs: ['/encoder8/smolgen/ln2', '/const/encoder8/smolgen/gen_from/shape']
+  outputs: ['/encoder8/smolgen/gen_from/reshape']
+0448 /encoder8/smolgen/smol_weight_gen (MatMul)
+  inputs: ['/encoder8/smolgen/gen_from/reshape', '/const/smolgen_w']
+  outputs: ['/encoder8/smolgen/smol_weight_gen']
+0449 /encoder8/smolgen/out/reshape (Reshape)
+  inputs: ['/encoder8/smolgen/smol_weight_gen', '/const/encoder8/smolgen/out/shape']
+  outputs: ['/encoder8/smolgen/out/reshape']
+0450 /encoder8/smolgen_weights (Add)
+  inputs: ['/encoder8/mha/QK/scale', '/encoder8/smolgen/out/reshape']
+  outputs: ['/encoder8/smolgen_weights']
+0451 /encoder8/mha/QK/softmax (Softmax)
+  inputs: ['/encoder8/smolgen_weights']
+  outputs: ['/encoder8/mha/QK/softmax']
+0452 /encoder8/mha/QKV/matmul (MatMul)
+  inputs: ['/encoder8/mha/QK/softmax', '/encoder8/mha/V/transpose']
+  outputs: ['/encoder8/mha/QKV/matmul']
+0453 /encoder8/mha/out/transpose (Transpose)
+  inputs: ['/encoder8/mha/QKV/matmul']
+  outputs: ['/encoder8/mha/out/transpose']
+0454 /encoder8/mha/out/reshape (Reshape)
+  inputs: ['/encoder8/mha/out/transpose', '/const/encoder8/mha/out/shape']
+  outputs: ['/encoder8/mha/out/reshape']
+0455 /encoder8/mha/out/dense/w (MatMul)
+  inputs: ['/encoder8/mha/out/reshape', '/encoder8/mha/out/dense/w/w']
+  outputs: ['/encoder8/mha/out/dense/w']
+0456 /encoder8/mha/out/dense/b (Add)
+  inputs: ['/encoder8/mha/out/dense/w', '/encoder8/mha/out/dense/b/w']
+  outputs: ['/encoder8/mha/out/dense/b']
+0457 /encoder8/alpha*input (Mul)
+  inputs: ['/encoder8/mha/out/dense/b', '/encoder8/alpha*input/w']
+  outputs: ['/encoder8/alpha*input']
+0458 /encoder8/mha/out/skip (Add)
+  inputs: ['/encoder8/alpha*input', '/encoder7/ln2']
+  outputs: ['/encoder8/mha/out/skip']
+0459 /encoder8/ln1 (LayerNormalization)
+  inputs: ['/encoder8/mha/out/skip', '/encoder8/ln1/w/scale', '/encoder8/ln1/w/bias']
+  outputs: ['/encoder8/ln1']
+0460 /encoder8/ffn/dense1/w (MatMul)
+  inputs: ['/encoder8/ln1', '/encoder8/ffn/dense1/w/w']
+  outputs: ['/encoder8/ffn/dense1/w']
+0461 /encoder8/ffn/dense1/b (Add)
+  inputs: ['/encoder8/ffn/dense1/w', '/encoder8/ffn/dense1/b/w']
+  outputs: ['/encoder8/ffn/dense1/b']
+0462 /encoder8/ffn/dense1/mish/softplus (Softplus)
+  inputs: ['/encoder8/ffn/dense1/b']
+  outputs: ['/encoder8/ffn/dense1/mish/softplus']
+0463 /encoder8/ffn/dense1/mish/tanh (Tanh)
+  inputs: ['/encoder8/ffn/dense1/mish/softplus']
+  outputs: ['/encoder8/ffn/dense1/mish/tanh']
+0464 /encoder8/ffn/dense1/mish (Mul)
+  inputs: ['/encoder8/ffn/dense1/mish/tanh', '/encoder8/ffn/dense1/b']
+  outputs: ['/encoder8/ffn/dense1/mish']
+0465 /encoder8/ffn/dense2/w (MatMul)
+  inputs: ['/encoder8/ffn/dense1/mish', '/encoder8/ffn/dense2/w/w']
+  outputs: ['/encoder8/ffn/dense2/w']
+0466 /encoder8/ffn/dense2/b (Add)
+  inputs: ['/encoder8/ffn/dense2/w', '/encoder8/ffn/dense2/b/w']
+  outputs: ['/encoder8/ffn/dense2/b']
+0467 /encoder8/ffn/alpha (Mul)
+  inputs: ['/encoder8/ffn/dense2/b', '/encoder8/ffn/alpha/w']
+  outputs: ['/encoder8/ffn/alpha']
+0468 /encoder8/ffn/skip (Add)
+  inputs: ['/encoder8/ffn/alpha', '/encoder8/ln1']
+  outputs: ['/encoder8/ffn/skip']
+0469 /encoder8/ln2 (LayerNormalization)
+  inputs: ['/encoder8/ffn/skip', '/encoder8/ln2/w/scale', '/encoder8/ln2/w/bias']
+  outputs: ['/encoder8/ln2']
+0470 /encoder9/mha/Q/w (MatMul)
+  inputs: ['/encoder8/ln2', '/encoder9/mha/Q/w/w']
+  outputs: ['/encoder9/mha/Q/w']
+0471 /encoder9/mha/Q/b (Add)
+  inputs: ['/encoder9/mha/Q/w', '/encoder9/mha/Q/b/w']
+  outputs: ['/encoder9/mha/Q/b']
+0472 /encoder9/mha/Q/reshape (Reshape)
+  inputs: ['/encoder9/mha/Q/b', '/const/encoder9/mha/shape']
+  outputs: ['/encoder9/mha/Q/reshape']
+0473 /encoder9/mha/Q/transpose (Transpose)
+  inputs: ['/encoder9/mha/Q/reshape']
+  outputs: ['/encoder9/mha/Q/transpose']
+0474 /encoder9/mha/K/w (MatMul)
+  inputs: ['/encoder8/ln2', '/encoder9/mha/K/w/w']
+  outputs: ['/encoder9/mha/K/w']
+0475 /encoder9/mha/K/b (Add)
+  inputs: ['/encoder9/mha/K/w', '/encoder9/mha/K/b/w']
+  outputs: ['/encoder9/mha/K/b']
+0476 /encoder9/mha/K/reshape (Reshape)
+  inputs: ['/encoder9/mha/K/b', '/const/encoder9/mha/shape']
+  outputs: ['/encoder9/mha/K/reshape']
+0477 /encoder9/mha/K/transpose (Transpose)
+  inputs: ['/encoder9/mha/K/reshape']
+  outputs: ['/encoder9/mha/K/transpose']
+0478 /encoder9/mha/V/w (MatMul)
+  inputs: ['/encoder8/ln2', '/encoder9/mha/V/w/w']
+  outputs: ['/encoder9/mha/V/w']
+0479 /encoder9/mha/V/b (Add)
+  inputs: ['/encoder9/mha/V/w', '/encoder9/mha/V/b/w']
+  outputs: ['/encoder9/mha/V/b']
+0480 /encoder9/mha/V/reshape (Reshape)
+  inputs: ['/encoder9/mha/V/b', '/const/encoder9/mha/shape']
+  outputs: ['/encoder9/mha/V/reshape']
+0481 /encoder9/mha/V/transpose (Transpose)
+  inputs: ['/encoder9/mha/V/reshape']
+  outputs: ['/encoder9/mha/V/transpose']
+0482 /encoder9/mha/QK/matmul (MatMul)
+  inputs: ['/encoder9/mha/Q/transpose', '/encoder9/mha/K/transpose']
+  outputs: ['/encoder9/mha/QK/matmul']
+0483 /encoder9/mha/QK/scale (Mul)
+  inputs: ['/encoder9/mha/QK/matmul', '/encoder9/mha/QK/scale/w']
+  outputs: ['/encoder9/mha/QK/scale']
+0484 /encoder9/smolgen/compress (MatMul)
+  inputs: ['/encoder8/ln2', '/encoder9/smolgen/compress/w']
+  outputs: ['/encoder9/smolgen/compress']
+0485 /encoder9/smolgen/compress/reshape (Reshape)
+  inputs: ['/encoder9/smolgen/compress', '/const/encoder9/smolgen/compress/shape']
+  outputs: ['/encoder9/smolgen/compress/reshape']
+0486 /encoder9/smolgen/dense1/w (MatMul)
+  inputs: ['/encoder9/smolgen/compress/reshape', '/encoder9/smolgen/dense1/w/w']
+  outputs: ['/encoder9/smolgen/dense1/w']
+0487 /encoder9/smolgen/dense1/b (Add)
+  inputs: ['/encoder9/smolgen/dense1/w', '/encoder9/smolgen/dense1/b/w']
+  outputs: ['/encoder9/smolgen/dense1/b']
+0488 /encoder9/smolgen/dense1/swish/sigmoid (Sigmoid)
+  inputs: ['/encoder9/smolgen/dense1/b']
+  outputs: ['/encoder9/smolgen/dense1/swish/sigmoid']
+0489 /encoder9/smolgen/dense1/swish (Mul)
+  inputs: ['/encoder9/smolgen/dense1/swish/sigmoid', '/encoder9/smolgen/dense1/b']
+  outputs: ['/encoder9/smolgen/dense1/swish']
+0490 /encoder9/smolgen/ln1 (LayerNormalization)
+  inputs: ['/encoder9/smolgen/dense1/swish', '/encoder9/smolgen/ln1/w/scale', '/encoder9/smolgen/ln1/w/bias']
+  outputs: ['/encoder9/smolgen/ln1']
+0491 /encoder9/smolgen/dense2/w (MatMul)
+  inputs: ['/encoder9/smolgen/ln1', '/encoder9/smolgen/dense2/w/w']
+  outputs: ['/encoder9/smolgen/dense2/w']
+0492 /encoder9/smolgen/dense2/b (Add)
+  inputs: ['/encoder9/smolgen/dense2/w', '/encoder9/smolgen/dense2/b/w']
+  outputs: ['/encoder9/smolgen/dense2/b']
+0493 /encoder9/smolgen/dense2/swish/sigmoid (Sigmoid)
+  inputs: ['/encoder9/smolgen/dense2/b']
+  outputs: ['/encoder9/smolgen/dense2/swish/sigmoid']
+0494 /encoder9/smolgen/dense2/swish (Mul)
+  inputs: ['/encoder9/smolgen/dense2/swish/sigmoid', '/encoder9/smolgen/dense2/b']
+  outputs: ['/encoder9/smolgen/dense2/swish']
+0495 /encoder9/smolgen/ln2 (LayerNormalization)
+  inputs: ['/encoder9/smolgen/dense2/swish', '/encoder9/smolgen/ln2/w/scale', '/encoder9/smolgen/ln2/w/bias']
+  outputs: ['/encoder9/smolgen/ln2']
+0496 /encoder9/smolgen/gen_from/reshape (Reshape)
+  inputs: ['/encoder9/smolgen/ln2', '/const/encoder9/smolgen/gen_from/shape']
+  outputs: ['/encoder9/smolgen/gen_from/reshape']
+0497 /encoder9/smolgen/smol_weight_gen (MatMul)
+  inputs: ['/encoder9/smolgen/gen_from/reshape', '/const/smolgen_w']
+  outputs: ['/encoder9/smolgen/smol_weight_gen']
+0498 /encoder9/smolgen/out/reshape (Reshape)
+  inputs: ['/encoder9/smolgen/smol_weight_gen', '/const/encoder9/smolgen/out/shape']
+  outputs: ['/encoder9/smolgen/out/reshape']
+0499 /encoder9/smolgen_weights (Add)
+  inputs: ['/encoder9/mha/QK/scale', '/encoder9/smolgen/out/reshape']
+  outputs: ['/encoder9/smolgen_weights']
+0500 /encoder9/mha/QK/softmax (Softmax)
+  inputs: ['/encoder9/smolgen_weights']
+  outputs: ['/encoder9/mha/QK/softmax']
+0501 /encoder9/mha/QKV/matmul (MatMul)
+  inputs: ['/encoder9/mha/QK/softmax', '/encoder9/mha/V/transpose']
+  outputs: ['/encoder9/mha/QKV/matmul']
+0502 /encoder9/mha/out/transpose (Transpose)
+  inputs: ['/encoder9/mha/QKV/matmul']
+  outputs: ['/encoder9/mha/out/transpose']
+0503 /encoder9/mha/out/reshape (Reshape)
+  inputs: ['/encoder9/mha/out/transpose', '/const/encoder9/mha/out/shape']
+  outputs: ['/encoder9/mha/out/reshape']
+0504 /encoder9/mha/out/dense/w (MatMul)
+  inputs: ['/encoder9/mha/out/reshape', '/encoder9/mha/out/dense/w/w']
+  outputs: ['/encoder9/mha/out/dense/w']
+0505 /encoder9/mha/out/dense/b (Add)
+  inputs: ['/encoder9/mha/out/dense/w', '/encoder9/mha/out/dense/b/w']
+  outputs: ['/encoder9/mha/out/dense/b']
+0506 /encoder9/alpha*input (Mul)
+  inputs: ['/encoder9/mha/out/dense/b', '/encoder9/alpha*input/w']
+  outputs: ['/encoder9/alpha*input']
+0507 /encoder9/mha/out/skip (Add)
+  inputs: ['/encoder9/alpha*input', '/encoder8/ln2']
+  outputs: ['/encoder9/mha/out/skip']
+0508 /encoder9/ln1 (LayerNormalization)
+  inputs: ['/encoder9/mha/out/skip', '/encoder9/ln1/w/scale', '/encoder9/ln1/w/bias']
+  outputs: ['/encoder9/ln1']
+0509 /encoder9/ffn/dense1/w (MatMul)
+  inputs: ['/encoder9/ln1', '/encoder9/ffn/dense1/w/w']
+  outputs: ['/encoder9/ffn/dense1/w']
+0510 /encoder9/ffn/dense1/b (Add)
+  inputs: ['/encoder9/ffn/dense1/w', '/encoder9/ffn/dense1/b/w']
+  outputs: ['/encoder9/ffn/dense1/b']
+0511 /encoder9/ffn/dense1/mish/softplus (Softplus)
+  inputs: ['/encoder9/ffn/dense1/b']
+  outputs: ['/encoder9/ffn/dense1/mish/softplus']
+0512 /encoder9/ffn/dense1/mish/tanh (Tanh)
+  inputs: ['/encoder9/ffn/dense1/mish/softplus']
+  outputs: ['/encoder9/ffn/dense1/mish/tanh']
+0513 /encoder9/ffn/dense1/mish (Mul)
+  inputs: ['/encoder9/ffn/dense1/mish/tanh', '/encoder9/ffn/dense1/b']
+  outputs: ['/encoder9/ffn/dense1/mish']
+0514 /encoder9/ffn/dense2/w (MatMul)
+  inputs: ['/encoder9/ffn/dense1/mish', '/encoder9/ffn/dense2/w/w']
+  outputs: ['/encoder9/ffn/dense2/w']
+0515 /encoder9/ffn/dense2/b (Add)
+  inputs: ['/encoder9/ffn/dense2/w', '/encoder9/ffn/dense2/b/w']
+  outputs: ['/encoder9/ffn/dense2/b']
+0516 /encoder9/ffn/alpha (Mul)
+  inputs: ['/encoder9/ffn/dense2/b', '/encoder9/ffn/alpha/w']
+  outputs: ['/encoder9/ffn/alpha']
+0517 /encoder9/ffn/skip (Add)
+  inputs: ['/encoder9/ffn/alpha', '/encoder9/ln1']
+  outputs: ['/encoder9/ffn/skip']
+0518 /encoder9/ln2 (LayerNormalization)
+  inputs: ['/encoder9/ffn/skip', '/encoder9/ln2/w/scale', '/encoder9/ln2/w/bias']
+  outputs: ['/encoder9/ln2']
+0519 /encoder10/mha/Q/w (MatMul)
+  inputs: ['/encoder9/ln2', '/encoder10/mha/Q/w/w']
+  outputs: ['/encoder10/mha/Q/w']
+0520 /encoder10/mha/Q/b (Add)
+  inputs: ['/encoder10/mha/Q/w', '/encoder10/mha/Q/b/w']
+  outputs: ['/encoder10/mha/Q/b']
+0521 /encoder10/mha/Q/reshape (Reshape)
+  inputs: ['/encoder10/mha/Q/b', '/const/encoder10/mha/shape']
+  outputs: ['/encoder10/mha/Q/reshape']
+0522 /encoder10/mha/Q/transpose (Transpose)
+  inputs: ['/encoder10/mha/Q/reshape']
+  outputs: ['/encoder10/mha/Q/transpose']
+0523 /encoder10/mha/K/w (MatMul)
+  inputs: ['/encoder9/ln2', '/encoder10/mha/K/w/w']
+  outputs: ['/encoder10/mha/K/w']
+0524 /encoder10/mha/K/b (Add)
+  inputs: ['/encoder10/mha/K/w', '/encoder10/mha/K/b/w']
+  outputs: ['/encoder10/mha/K/b']
+0525 /encoder10/mha/K/reshape (Reshape)
+  inputs: ['/encoder10/mha/K/b', '/const/encoder10/mha/shape']
+  outputs: ['/encoder10/mha/K/reshape']
+0526 /encoder10/mha/K/transpose (Transpose)
+  inputs: ['/encoder10/mha/K/reshape']
+  outputs: ['/encoder10/mha/K/transpose']
+0527 /encoder10/mha/V/w (MatMul)
+  inputs: ['/encoder9/ln2', '/encoder10/mha/V/w/w']
+  outputs: ['/encoder10/mha/V/w']
+0528 /encoder10/mha/V/b (Add)
+  inputs: ['/encoder10/mha/V/w', '/encoder10/mha/V/b/w']
+  outputs: ['/encoder10/mha/V/b']
+0529 /encoder10/mha/V/reshape (Reshape)
+  inputs: ['/encoder10/mha/V/b', '/const/encoder10/mha/shape']
+  outputs: ['/encoder10/mha/V/reshape']
+0530 /encoder10/mha/V/transpose (Transpose)
+  inputs: ['/encoder10/mha/V/reshape']
+  outputs: ['/encoder10/mha/V/transpose']
+0531 /encoder10/mha/QK/matmul (MatMul)
+  inputs: ['/encoder10/mha/Q/transpose', '/encoder10/mha/K/transpose']
+  outputs: ['/encoder10/mha/QK/matmul']
+0532 /encoder10/mha/QK/scale (Mul)
+  inputs: ['/encoder10/mha/QK/matmul', '/encoder10/mha/QK/scale/w']
+  outputs: ['/encoder10/mha/QK/scale']
+0533 /encoder10/smolgen/compress (MatMul)
+  inputs: ['/encoder9/ln2', '/encoder10/smolgen/compress/w']
+  outputs: ['/encoder10/smolgen/compress']
+0534 /encoder10/smolgen/compress/reshape (Reshape)
+  inputs: ['/encoder10/smolgen/compress', '/const/encoder10/smolgen/compress/shape']
+  outputs: ['/encoder10/smolgen/compress/reshape']
+0535 /encoder10/smolgen/dense1/w (MatMul)
+  inputs: ['/encoder10/smolgen/compress/reshape', '/encoder10/smolgen/dense1/w/w']
+  outputs: ['/encoder10/smolgen/dense1/w']
+0536 /encoder10/smolgen/dense1/b (Add)
+  inputs: ['/encoder10/smolgen/dense1/w', '/encoder10/smolgen/dense1/b/w']
+  outputs: ['/encoder10/smolgen/dense1/b']
+0537 /encoder10/smolgen/dense1/swish/sigmoid (Sigmoid)
+  inputs: ['/encoder10/smolgen/dense1/b']
+  outputs: ['/encoder10/smolgen/dense1/swish/sigmoid']
+0538 /encoder10/smolgen/dense1/swish (Mul)
+  inputs: ['/encoder10/smolgen/dense1/swish/sigmoid', '/encoder10/smolgen/dense1/b']
+  outputs: ['/encoder10/smolgen/dense1/swish']
+0539 /encoder10/smolgen/ln1 (LayerNormalization)
+  inputs: ['/encoder10/smolgen/dense1/swish', '/encoder10/smolgen/ln1/w/scale', '/encoder10/smolgen/ln1/w/bias']
+  outputs: ['/encoder10/smolgen/ln1']
+0540 /encoder10/smolgen/dense2/w (MatMul)
+  inputs: ['/encoder10/smolgen/ln1', '/encoder10/smolgen/dense2/w/w']
+  outputs: ['/encoder10/smolgen/dense2/w']
+0541 /encoder10/smolgen/dense2/b (Add)
+  inputs: ['/encoder10/smolgen/dense2/w', '/encoder10/smolgen/dense2/b/w']
+  outputs: ['/encoder10/smolgen/dense2/b']
+0542 /encoder10/smolgen/dense2/swish/sigmoid (Sigmoid)
+  inputs: ['/encoder10/smolgen/dense2/b']
+  outputs: ['/encoder10/smolgen/dense2/swish/sigmoid']
+0543 /encoder10/smolgen/dense2/swish (Mul)
+  inputs: ['/encoder10/smolgen/dense2/swish/sigmoid', '/encoder10/smolgen/dense2/b']
+  outputs: ['/encoder10/smolgen/dense2/swish']
+0544 /encoder10/smolgen/ln2 (LayerNormalization)
+  inputs: ['/encoder10/smolgen/dense2/swish', '/encoder10/smolgen/ln2/w/scale', '/encoder10/smolgen/ln2/w/bias']
+  outputs: ['/encoder10/smolgen/ln2']
+0545 /encoder10/smolgen/gen_from/reshape (Reshape)
+  inputs: ['/encoder10/smolgen/ln2', '/const/encoder10/smolgen/gen_from/shape']
+  outputs: ['/encoder10/smolgen/gen_from/reshape']
+0546 /encoder10/smolgen/smol_weight_gen (MatMul)
+  inputs: ['/encoder10/smolgen/gen_from/reshape', '/const/smolgen_w']
+  outputs: ['/encoder10/smolgen/smol_weight_gen']
+0547 /encoder10/smolgen/out/reshape (Reshape)
+  inputs: ['/encoder10/smolgen/smol_weight_gen', '/const/encoder10/smolgen/out/shape']
+  outputs: ['/encoder10/smolgen/out/reshape']
+0548 /encoder10/smolgen_weights (Add)
+  inputs: ['/encoder10/mha/QK/scale', '/encoder10/smolgen/out/reshape']
+  outputs: ['/encoder10/smolgen_weights']
+0549 /encoder10/mha/QK/softmax (Softmax)
+  inputs: ['/encoder10/smolgen_weights']
+  outputs: ['/encoder10/mha/QK/softmax']
+0550 /encoder10/mha/QKV/matmul (MatMul)
+  inputs: ['/encoder10/mha/QK/softmax', '/encoder10/mha/V/transpose']
+  outputs: ['/encoder10/mha/QKV/matmul']
+0551 /encoder10/mha/out/transpose (Transpose)
+  inputs: ['/encoder10/mha/QKV/matmul']
+  outputs: ['/encoder10/mha/out/transpose']
+0552 /encoder10/mha/out/reshape (Reshape)
+  inputs: ['/encoder10/mha/out/transpose', '/const/encoder10/mha/out/shape']
+  outputs: ['/encoder10/mha/out/reshape']
+0553 /encoder10/mha/out/dense/w (MatMul)
+  inputs: ['/encoder10/mha/out/reshape', '/encoder10/mha/out/dense/w/w']
+  outputs: ['/encoder10/mha/out/dense/w']
+0554 /encoder10/mha/out/dense/b (Add)
+  inputs: ['/encoder10/mha/out/dense/w', '/encoder10/mha/out/dense/b/w']
+  outputs: ['/encoder10/mha/out/dense/b']
+0555 /encoder10/alpha*input (Mul)
+  inputs: ['/encoder10/mha/out/dense/b', '/encoder10/alpha*input/w']
+  outputs: ['/encoder10/alpha*input']
+0556 /encoder10/mha/out/skip (Add)
+  inputs: ['/encoder10/alpha*input', '/encoder9/ln2']
+  outputs: ['/encoder10/mha/out/skip']
+0557 /encoder10/ln1 (LayerNormalization)
+  inputs: ['/encoder10/mha/out/skip', '/encoder10/ln1/w/scale', '/encoder10/ln1/w/bias']
+  outputs: ['/encoder10/ln1']
+0558 /encoder10/ffn/dense1/w (MatMul)
+  inputs: ['/encoder10/ln1', '/encoder10/ffn/dense1/w/w']
+  outputs: ['/encoder10/ffn/dense1/w']
+0559 /encoder10/ffn/dense1/b (Add)
+  inputs: ['/encoder10/ffn/dense1/w', '/encoder10/ffn/dense1/b/w']
+  outputs: ['/encoder10/ffn/dense1/b']
+0560 /encoder10/ffn/dense1/mish/softplus (Softplus)
+  inputs: ['/encoder10/ffn/dense1/b']
+  outputs: ['/encoder10/ffn/dense1/mish/softplus']
+0561 /encoder10/ffn/dense1/mish/tanh (Tanh)
+  inputs: ['/encoder10/ffn/dense1/mish/softplus']
+  outputs: ['/encoder10/ffn/dense1/mish/tanh']
+0562 /encoder10/ffn/dense1/mish (Mul)
+  inputs: ['/encoder10/ffn/dense1/mish/tanh', '/encoder10/ffn/dense1/b']
+  outputs: ['/encoder10/ffn/dense1/mish']
+0563 /encoder10/ffn/dense2/w (MatMul)
+  inputs: ['/encoder10/ffn/dense1/mish', '/encoder10/ffn/dense2/w/w']
+  outputs: ['/encoder10/ffn/dense2/w']
+0564 /encoder10/ffn/dense2/b (Add)
+  inputs: ['/encoder10/ffn/dense2/w', '/encoder10/ffn/dense2/b/w']
+  outputs: ['/encoder10/ffn/dense2/b']
+0565 /encoder10/ffn/alpha (Mul)
+  inputs: ['/encoder10/ffn/dense2/b', '/encoder10/ffn/alpha/w']
+  outputs: ['/encoder10/ffn/alpha']
+0566 /encoder10/ffn/skip (Add)
+  inputs: ['/encoder10/ffn/alpha', '/encoder10/ln1']
+  outputs: ['/encoder10/ffn/skip']
+0567 /encoder10/ln2 (LayerNormalization)
+  inputs: ['/encoder10/ffn/skip', '/encoder10/ln2/w/scale', '/encoder10/ln2/w/bias']
+  outputs: ['/encoder10/ln2']
+0568 /encoder11/mha/Q/w (MatMul)
+  inputs: ['/encoder10/ln2', '/encoder11/mha/Q/w/w']
+  outputs: ['/encoder11/mha/Q/w']
+0569 /encoder11/mha/Q/b (Add)
+  inputs: ['/encoder11/mha/Q/w', '/encoder11/mha/Q/b/w']
+  outputs: ['/encoder11/mha/Q/b']
+0570 /encoder11/mha/Q/reshape (Reshape)
+  inputs: ['/encoder11/mha/Q/b', '/const/encoder11/mha/shape']
+  outputs: ['/encoder11/mha/Q/reshape']
+0571 /encoder11/mha/Q/transpose (Transpose)
+  inputs: ['/encoder11/mha/Q/reshape']
+  outputs: ['/encoder11/mha/Q/transpose']
+0572 /encoder11/mha/K/w (MatMul)
+  inputs: ['/encoder10/ln2', '/encoder11/mha/K/w/w']
+  outputs: ['/encoder11/mha/K/w']
+0573 /encoder11/mha/K/b (Add)
+  inputs: ['/encoder11/mha/K/w', '/encoder11/mha/K/b/w']
+  outputs: ['/encoder11/mha/K/b']
+0574 /encoder11/mha/K/reshape (Reshape)
+  inputs: ['/encoder11/mha/K/b', '/const/encoder11/mha/shape']
+  outputs: ['/encoder11/mha/K/reshape']
+0575 /encoder11/mha/K/transpose (Transpose)
+  inputs: ['/encoder11/mha/K/reshape']
+  outputs: ['/encoder11/mha/K/transpose']
+0576 /encoder11/mha/V/w (MatMul)
+  inputs: ['/encoder10/ln2', '/encoder11/mha/V/w/w']
+  outputs: ['/encoder11/mha/V/w']
+0577 /encoder11/mha/V/b (Add)
+  inputs: ['/encoder11/mha/V/w', '/encoder11/mha/V/b/w']
+  outputs: ['/encoder11/mha/V/b']
+0578 /encoder11/mha/V/reshape (Reshape)
+  inputs: ['/encoder11/mha/V/b', '/const/encoder11/mha/shape']
+  outputs: ['/encoder11/mha/V/reshape']
+0579 /encoder11/mha/V/transpose (Transpose)
+  inputs: ['/encoder11/mha/V/reshape']
+  outputs: ['/encoder11/mha/V/transpose']
+0580 /encoder11/mha/QK/matmul (MatMul)
+  inputs: ['/encoder11/mha/Q/transpose', '/encoder11/mha/K/transpose']
+  outputs: ['/encoder11/mha/QK/matmul']
+0581 /encoder11/mha/QK/scale (Mul)
+  inputs: ['/encoder11/mha/QK/matmul', '/encoder11/mha/QK/scale/w']
+  outputs: ['/encoder11/mha/QK/scale']
+0582 /encoder11/smolgen/compress (MatMul)
+  inputs: ['/encoder10/ln2', '/encoder11/smolgen/compress/w']
+  outputs: ['/encoder11/smolgen/compress']
+0583 /encoder11/smolgen/compress/reshape (Reshape)
+  inputs: ['/encoder11/smolgen/compress', '/const/encoder11/smolgen/compress/shape']
+  outputs: ['/encoder11/smolgen/compress/reshape']
+0584 /encoder11/smolgen/dense1/w (MatMul)
+  inputs: ['/encoder11/smolgen/compress/reshape', '/encoder11/smolgen/dense1/w/w']
+  outputs: ['/encoder11/smolgen/dense1/w']
+0585 /encoder11/smolgen/dense1/b (Add)
+  inputs: ['/encoder11/smolgen/dense1/w', '/encoder11/smolgen/dense1/b/w']
+  outputs: ['/encoder11/smolgen/dense1/b']
+0586 /encoder11/smolgen/dense1/swish/sigmoid (Sigmoid)
+  inputs: ['/encoder11/smolgen/dense1/b']
+  outputs: ['/encoder11/smolgen/dense1/swish/sigmoid']
+0587 /encoder11/smolgen/dense1/swish (Mul)
+  inputs: ['/encoder11/smolgen/dense1/swish/sigmoid', '/encoder11/smolgen/dense1/b']
+  outputs: ['/encoder11/smolgen/dense1/swish']
+0588 /encoder11/smolgen/ln1 (LayerNormalization)
+  inputs: ['/encoder11/smolgen/dense1/swish', '/encoder11/smolgen/ln1/w/scale', '/encoder11/smolgen/ln1/w/bias']
+  outputs: ['/encoder11/smolgen/ln1']
+0589 /encoder11/smolgen/dense2/w (MatMul)
+  inputs: ['/encoder11/smolgen/ln1', '/encoder11/smolgen/dense2/w/w']
+  outputs: ['/encoder11/smolgen/dense2/w']
+0590 /encoder11/smolgen/dense2/b (Add)
+  inputs: ['/encoder11/smolgen/dense2/w', '/encoder11/smolgen/dense2/b/w']
+  outputs: ['/encoder11/smolgen/dense2/b']
+0591 /encoder11/smolgen/dense2/swish/sigmoid (Sigmoid)
+  inputs: ['/encoder11/smolgen/dense2/b']
+  outputs: ['/encoder11/smolgen/dense2/swish/sigmoid']
+0592 /encoder11/smolgen/dense2/swish (Mul)
+  inputs: ['/encoder11/smolgen/dense2/swish/sigmoid', '/encoder11/smolgen/dense2/b']
+  outputs: ['/encoder11/smolgen/dense2/swish']
+0593 /encoder11/smolgen/ln2 (LayerNormalization)
+  inputs: ['/encoder11/smolgen/dense2/swish', '/encoder11/smolgen/ln2/w/scale', '/encoder11/smolgen/ln2/w/bias']
+  outputs: ['/encoder11/smolgen/ln2']
+0594 /encoder11/smolgen/gen_from/reshape (Reshape)
+  inputs: ['/encoder11/smolgen/ln2', '/const/encoder11/smolgen/gen_from/shape']
+  outputs: ['/encoder11/smolgen/gen_from/reshape']
+0595 /encoder11/smolgen/smol_weight_gen (MatMul)
+  inputs: ['/encoder11/smolgen/gen_from/reshape', '/const/smolgen_w']
+  outputs: ['/encoder11/smolgen/smol_weight_gen']
+0596 /encoder11/smolgen/out/reshape (Reshape)
+  inputs: ['/encoder11/smolgen/smol_weight_gen', '/const/encoder11/smolgen/out/shape']
+  outputs: ['/encoder11/smolgen/out/reshape']
+0597 /encoder11/smolgen_weights (Add)
+  inputs: ['/encoder11/mha/QK/scale', '/encoder11/smolgen/out/reshape']
+  outputs: ['/encoder11/smolgen_weights']
+0598 /encoder11/mha/QK/softmax (Softmax)
+  inputs: ['/encoder11/smolgen_weights']
+  outputs: ['/encoder11/mha/QK/softmax']
+0599 /encoder11/mha/QKV/matmul (MatMul)
+  inputs: ['/encoder11/mha/QK/softmax', '/encoder11/mha/V/transpose']
+  outputs: ['/encoder11/mha/QKV/matmul']
+0600 /encoder11/mha/out/transpose (Transpose)
+  inputs: ['/encoder11/mha/QKV/matmul']
+  outputs: ['/encoder11/mha/out/transpose']
+0601 /encoder11/mha/out/reshape (Reshape)
+  inputs: ['/encoder11/mha/out/transpose', '/const/encoder11/mha/out/shape']
+  outputs: ['/encoder11/mha/out/reshape']
+0602 /encoder11/mha/out/dense/w (MatMul)
+  inputs: ['/encoder11/mha/out/reshape', '/encoder11/mha/out/dense/w/w']
+  outputs: ['/encoder11/mha/out/dense/w']
+0603 /encoder11/mha/out/dense/b (Add)
+  inputs: ['/encoder11/mha/out/dense/w', '/encoder11/mha/out/dense/b/w']
+  outputs: ['/encoder11/mha/out/dense/b']
+0604 /encoder11/alpha*input (Mul)
+  inputs: ['/encoder11/mha/out/dense/b', '/encoder11/alpha*input/w']
+  outputs: ['/encoder11/alpha*input']
+0605 /encoder11/mha/out/skip (Add)
+  inputs: ['/encoder11/alpha*input', '/encoder10/ln2']
+  outputs: ['/encoder11/mha/out/skip']
+0606 /encoder11/ln1 (LayerNormalization)
+  inputs: ['/encoder11/mha/out/skip', '/encoder11/ln1/w/scale', '/encoder11/ln1/w/bias']
+  outputs: ['/encoder11/ln1']
+0607 /encoder11/ffn/dense1/w (MatMul)
+  inputs: ['/encoder11/ln1', '/encoder11/ffn/dense1/w/w']
+  outputs: ['/encoder11/ffn/dense1/w']
+0608 /encoder11/ffn/dense1/b (Add)
+  inputs: ['/encoder11/ffn/dense1/w', '/encoder11/ffn/dense1/b/w']
+  outputs: ['/encoder11/ffn/dense1/b']
+0609 /encoder11/ffn/dense1/mish/softplus (Softplus)
+  inputs: ['/encoder11/ffn/dense1/b']
+  outputs: ['/encoder11/ffn/dense1/mish/softplus']
+0610 /encoder11/ffn/dense1/mish/tanh (Tanh)
+  inputs: ['/encoder11/ffn/dense1/mish/softplus']
+  outputs: ['/encoder11/ffn/dense1/mish/tanh']
+0611 /encoder11/ffn/dense1/mish (Mul)
+  inputs: ['/encoder11/ffn/dense1/mish/tanh', '/encoder11/ffn/dense1/b']
+  outputs: ['/encoder11/ffn/dense1/mish']
+0612 /encoder11/ffn/dense2/w (MatMul)
+  inputs: ['/encoder11/ffn/dense1/mish', '/encoder11/ffn/dense2/w/w']
+  outputs: ['/encoder11/ffn/dense2/w']
+0613 /encoder11/ffn/dense2/b (Add)
+  inputs: ['/encoder11/ffn/dense2/w', '/encoder11/ffn/dense2/b/w']
+  outputs: ['/encoder11/ffn/dense2/b']
+0614 /encoder11/ffn/alpha (Mul)
+  inputs: ['/encoder11/ffn/dense2/b', '/encoder11/ffn/alpha/w']
+  outputs: ['/encoder11/ffn/alpha']
+0615 /encoder11/ffn/skip (Add)
+  inputs: ['/encoder11/ffn/alpha', '/encoder11/ln1']
+  outputs: ['/encoder11/ffn/skip']
+0616 /encoder11/ln2 (LayerNormalization)
+  inputs: ['/encoder11/ffn/skip', '/encoder11/ln2/w/scale', '/encoder11/ln2/w/bias']
+  outputs: ['/encoder11/ln2']
+0617 /encoder12/mha/Q/w (MatMul)
+  inputs: ['/encoder11/ln2', '/encoder12/mha/Q/w/w']
+  outputs: ['/encoder12/mha/Q/w']
+0618 /encoder12/mha/Q/b (Add)
+  inputs: ['/encoder12/mha/Q/w', '/encoder12/mha/Q/b/w']
+  outputs: ['/encoder12/mha/Q/b']
+0619 /encoder12/mha/Q/reshape (Reshape)
+  inputs: ['/encoder12/mha/Q/b', '/const/encoder12/mha/shape']
+  outputs: ['/encoder12/mha/Q/reshape']
+0620 /encoder12/mha/Q/transpose (Transpose)
+  inputs: ['/encoder12/mha/Q/reshape']
+  outputs: ['/encoder12/mha/Q/transpose']
+0621 /encoder12/mha/K/w (MatMul)
+  inputs: ['/encoder11/ln2', '/encoder12/mha/K/w/w']
+  outputs: ['/encoder12/mha/K/w']
+0622 /encoder12/mha/K/b (Add)
+  inputs: ['/encoder12/mha/K/w', '/encoder12/mha/K/b/w']
+  outputs: ['/encoder12/mha/K/b']
+0623 /encoder12/mha/K/reshape (Reshape)
+  inputs: ['/encoder12/mha/K/b', '/const/encoder12/mha/shape']
+  outputs: ['/encoder12/mha/K/reshape']
+0624 /encoder12/mha/K/transpose (Transpose)
+  inputs: ['/encoder12/mha/K/reshape']
+  outputs: ['/encoder12/mha/K/transpose']
+0625 /encoder12/mha/V/w (MatMul)
+  inputs: ['/encoder11/ln2', '/encoder12/mha/V/w/w']
+  outputs: ['/encoder12/mha/V/w']
+0626 /encoder12/mha/V/b (Add)
+  inputs: ['/encoder12/mha/V/w', '/encoder12/mha/V/b/w']
+  outputs: ['/encoder12/mha/V/b']
+0627 /encoder12/mha/V/reshape (Reshape)
+  inputs: ['/encoder12/mha/V/b', '/const/encoder12/mha/shape']
+  outputs: ['/encoder12/mha/V/reshape']
+0628 /encoder12/mha/V/transpose (Transpose)
+  inputs: ['/encoder12/mha/V/reshape']
+  outputs: ['/encoder12/mha/V/transpose']
+0629 /encoder12/mha/QK/matmul (MatMul)
+  inputs: ['/encoder12/mha/Q/transpose', '/encoder12/mha/K/transpose']
+  outputs: ['/encoder12/mha/QK/matmul']
+0630 /encoder12/mha/QK/scale (Mul)
+  inputs: ['/encoder12/mha/QK/matmul', '/encoder12/mha/QK/scale/w']
+  outputs: ['/encoder12/mha/QK/scale']
+0631 /encoder12/smolgen/compress (MatMul)
+  inputs: ['/encoder11/ln2', '/encoder12/smolgen/compress/w']
+  outputs: ['/encoder12/smolgen/compress']
+0632 /encoder12/smolgen/compress/reshape (Reshape)
+  inputs: ['/encoder12/smolgen/compress', '/const/encoder12/smolgen/compress/shape']
+  outputs: ['/encoder12/smolgen/compress/reshape']
+0633 /encoder12/smolgen/dense1/w (MatMul)
+  inputs: ['/encoder12/smolgen/compress/reshape', '/encoder12/smolgen/dense1/w/w']
+  outputs: ['/encoder12/smolgen/dense1/w']
+0634 /encoder12/smolgen/dense1/b (Add)
+  inputs: ['/encoder12/smolgen/dense1/w', '/encoder12/smolgen/dense1/b/w']
+  outputs: ['/encoder12/smolgen/dense1/b']
+0635 /encoder12/smolgen/dense1/swish/sigmoid (Sigmoid)
+  inputs: ['/encoder12/smolgen/dense1/b']
+  outputs: ['/encoder12/smolgen/dense1/swish/sigmoid']
+0636 /encoder12/smolgen/dense1/swish (Mul)
+  inputs: ['/encoder12/smolgen/dense1/swish/sigmoid', '/encoder12/smolgen/dense1/b']
+  outputs: ['/encoder12/smolgen/dense1/swish']
+0637 /encoder12/smolgen/ln1 (LayerNormalization)
+  inputs: ['/encoder12/smolgen/dense1/swish', '/encoder12/smolgen/ln1/w/scale', '/encoder12/smolgen/ln1/w/bias']
+  outputs: ['/encoder12/smolgen/ln1']
+0638 /encoder12/smolgen/dense2/w (MatMul)
+  inputs: ['/encoder12/smolgen/ln1', '/encoder12/smolgen/dense2/w/w']
+  outputs: ['/encoder12/smolgen/dense2/w']
+0639 /encoder12/smolgen/dense2/b (Add)
+  inputs: ['/encoder12/smolgen/dense2/w', '/encoder12/smolgen/dense2/b/w']
+  outputs: ['/encoder12/smolgen/dense2/b']
+0640 /encoder12/smolgen/dense2/swish/sigmoid (Sigmoid)
+  inputs: ['/encoder12/smolgen/dense2/b']
+  outputs: ['/encoder12/smolgen/dense2/swish/sigmoid']
+0641 /encoder12/smolgen/dense2/swish (Mul)
+  inputs: ['/encoder12/smolgen/dense2/swish/sigmoid', '/encoder12/smolgen/dense2/b']
+  outputs: ['/encoder12/smolgen/dense2/swish']
+0642 /encoder12/smolgen/ln2 (LayerNormalization)
+  inputs: ['/encoder12/smolgen/dense2/swish', '/encoder12/smolgen/ln2/w/scale', '/encoder12/smolgen/ln2/w/bias']
+  outputs: ['/encoder12/smolgen/ln2']
+0643 /encoder12/smolgen/gen_from/reshape (Reshape)
+  inputs: ['/encoder12/smolgen/ln2', '/const/encoder12/smolgen/gen_from/shape']
+  outputs: ['/encoder12/smolgen/gen_from/reshape']
+0644 /encoder12/smolgen/smol_weight_gen (MatMul)
+  inputs: ['/encoder12/smolgen/gen_from/reshape', '/const/smolgen_w']
+  outputs: ['/encoder12/smolgen/smol_weight_gen']
+0645 /encoder12/smolgen/out/reshape (Reshape)
+  inputs: ['/encoder12/smolgen/smol_weight_gen', '/const/encoder12/smolgen/out/shape']
+  outputs: ['/encoder12/smolgen/out/reshape']
+0646 /encoder12/smolgen_weights (Add)
+  inputs: ['/encoder12/mha/QK/scale', '/encoder12/smolgen/out/reshape']
+  outputs: ['/encoder12/smolgen_weights']
+0647 /encoder12/mha/QK/softmax (Softmax)
+  inputs: ['/encoder12/smolgen_weights']
+  outputs: ['/encoder12/mha/QK/softmax']
+0648 /encoder12/mha/QKV/matmul (MatMul)
+  inputs: ['/encoder12/mha/QK/softmax', '/encoder12/mha/V/transpose']
+  outputs: ['/encoder12/mha/QKV/matmul']
+0649 /encoder12/mha/out/transpose (Transpose)
+  inputs: ['/encoder12/mha/QKV/matmul']
+  outputs: ['/encoder12/mha/out/transpose']
+0650 /encoder12/mha/out/reshape (Reshape)
+  inputs: ['/encoder12/mha/out/transpose', '/const/encoder12/mha/out/shape']
+  outputs: ['/encoder12/mha/out/reshape']
+0651 /encoder12/mha/out/dense/w (MatMul)
+  inputs: ['/encoder12/mha/out/reshape', '/encoder12/mha/out/dense/w/w']
+  outputs: ['/encoder12/mha/out/dense/w']
+0652 /encoder12/mha/out/dense/b (Add)
+  inputs: ['/encoder12/mha/out/dense/w', '/encoder12/mha/out/dense/b/w']
+  outputs: ['/encoder12/mha/out/dense/b']
+0653 /encoder12/alpha*input (Mul)
+  inputs: ['/encoder12/mha/out/dense/b', '/encoder12/alpha*input/w']
+  outputs: ['/encoder12/alpha*input']
+0654 /encoder12/mha/out/skip (Add)
+  inputs: ['/encoder12/alpha*input', '/encoder11/ln2']
+  outputs: ['/encoder12/mha/out/skip']
+0655 /encoder12/ln1 (LayerNormalization)
+  inputs: ['/encoder12/mha/out/skip', '/encoder12/ln1/w/scale', '/encoder12/ln1/w/bias']
+  outputs: ['/encoder12/ln1']
+0656 /encoder12/ffn/dense1/w (MatMul)
+  inputs: ['/encoder12/ln1', '/encoder12/ffn/dense1/w/w']
+  outputs: ['/encoder12/ffn/dense1/w']
+0657 /encoder12/ffn/dense1/b (Add)
+  inputs: ['/encoder12/ffn/dense1/w', '/encoder12/ffn/dense1/b/w']
+  outputs: ['/encoder12/ffn/dense1/b']
+0658 /encoder12/ffn/dense1/mish/softplus (Softplus)
+  inputs: ['/encoder12/ffn/dense1/b']
+  outputs: ['/encoder12/ffn/dense1/mish/softplus']
+0659 /encoder12/ffn/dense1/mish/tanh (Tanh)
+  inputs: ['/encoder12/ffn/dense1/mish/softplus']
+  outputs: ['/encoder12/ffn/dense1/mish/tanh']
+0660 /encoder12/ffn/dense1/mish (Mul)
+  inputs: ['/encoder12/ffn/dense1/mish/tanh', '/encoder12/ffn/dense1/b']
+  outputs: ['/encoder12/ffn/dense1/mish']
+0661 /encoder12/ffn/dense2/w (MatMul)
+  inputs: ['/encoder12/ffn/dense1/mish', '/encoder12/ffn/dense2/w/w']
+  outputs: ['/encoder12/ffn/dense2/w']
+0662 /encoder12/ffn/dense2/b (Add)
+  inputs: ['/encoder12/ffn/dense2/w', '/encoder12/ffn/dense2/b/w']
+  outputs: ['/encoder12/ffn/dense2/b']
+0663 /encoder12/ffn/alpha (Mul)
+  inputs: ['/encoder12/ffn/dense2/b', '/encoder12/ffn/alpha/w']
+  outputs: ['/encoder12/ffn/alpha']
+0664 /encoder12/ffn/skip (Add)
+  inputs: ['/encoder12/ffn/alpha', '/encoder12/ln1']
+  outputs: ['/encoder12/ffn/skip']
+0665 /encoder12/ln2 (LayerNormalization)
+  inputs: ['/encoder12/ffn/skip', '/encoder12/ln2/w/scale', '/encoder12/ln2/w/bias']
+  outputs: ['/encoder12/ln2']
+0666 /encoder13/mha/Q/w (MatMul)
+  inputs: ['/encoder12/ln2', '/encoder13/mha/Q/w/w']
+  outputs: ['/encoder13/mha/Q/w']
+0667 /encoder13/mha/Q/b (Add)
+  inputs: ['/encoder13/mha/Q/w', '/encoder13/mha/Q/b/w']
+  outputs: ['/encoder13/mha/Q/b']
+0668 /encoder13/mha/Q/reshape (Reshape)
+  inputs: ['/encoder13/mha/Q/b', '/const/encoder13/mha/shape']
+  outputs: ['/encoder13/mha/Q/reshape']
+0669 /encoder13/mha/Q/transpose (Transpose)
+  inputs: ['/encoder13/mha/Q/reshape']
+  outputs: ['/encoder13/mha/Q/transpose']
+0670 /encoder13/mha/K/w (MatMul)
+  inputs: ['/encoder12/ln2', '/encoder13/mha/K/w/w']
+  outputs: ['/encoder13/mha/K/w']
+0671 /encoder13/mha/K/b (Add)
+  inputs: ['/encoder13/mha/K/w', '/encoder13/mha/K/b/w']
+  outputs: ['/encoder13/mha/K/b']
+0672 /encoder13/mha/K/reshape (Reshape)
+  inputs: ['/encoder13/mha/K/b', '/const/encoder13/mha/shape']
+  outputs: ['/encoder13/mha/K/reshape']
+0673 /encoder13/mha/K/transpose (Transpose)
+  inputs: ['/encoder13/mha/K/reshape']
+  outputs: ['/encoder13/mha/K/transpose']
+0674 /encoder13/mha/V/w (MatMul)
+  inputs: ['/encoder12/ln2', '/encoder13/mha/V/w/w']
+  outputs: ['/encoder13/mha/V/w']
+0675 /encoder13/mha/V/b (Add)
+  inputs: ['/encoder13/mha/V/w', '/encoder13/mha/V/b/w']
+  outputs: ['/encoder13/mha/V/b']
+0676 /encoder13/mha/V/reshape (Reshape)
+  inputs: ['/encoder13/mha/V/b', '/const/encoder13/mha/shape']
+  outputs: ['/encoder13/mha/V/reshape']
+0677 /encoder13/mha/V/transpose (Transpose)
+  inputs: ['/encoder13/mha/V/reshape']
+  outputs: ['/encoder13/mha/V/transpose']
+0678 /encoder13/mha/QK/matmul (MatMul)
+  inputs: ['/encoder13/mha/Q/transpose', '/encoder13/mha/K/transpose']
+  outputs: ['/encoder13/mha/QK/matmul']
+0679 /encoder13/mha/QK/scale (Mul)
+  inputs: ['/encoder13/mha/QK/matmul', '/encoder13/mha/QK/scale/w']
+  outputs: ['/encoder13/mha/QK/scale']
+0680 /encoder13/smolgen/compress (MatMul)
+  inputs: ['/encoder12/ln2', '/encoder13/smolgen/compress/w']
+  outputs: ['/encoder13/smolgen/compress']
+0681 /encoder13/smolgen/compress/reshape (Reshape)
+  inputs: ['/encoder13/smolgen/compress', '/const/encoder13/smolgen/compress/shape']
+  outputs: ['/encoder13/smolgen/compress/reshape']
+0682 /encoder13/smolgen/dense1/w (MatMul)
+  inputs: ['/encoder13/smolgen/compress/reshape', '/encoder13/smolgen/dense1/w/w']
+  outputs: ['/encoder13/smolgen/dense1/w']
+0683 /encoder13/smolgen/dense1/b (Add)
+  inputs: ['/encoder13/smolgen/dense1/w', '/encoder13/smolgen/dense1/b/w']
+  outputs: ['/encoder13/smolgen/dense1/b']
+0684 /encoder13/smolgen/dense1/swish/sigmoid (Sigmoid)
+  inputs: ['/encoder13/smolgen/dense1/b']
+  outputs: ['/encoder13/smolgen/dense1/swish/sigmoid']
+0685 /encoder13/smolgen/dense1/swish (Mul)
+  inputs: ['/encoder13/smolgen/dense1/swish/sigmoid', '/encoder13/smolgen/dense1/b']
+  outputs: ['/encoder13/smolgen/dense1/swish']
+0686 /encoder13/smolgen/ln1 (LayerNormalization)
+  inputs: ['/encoder13/smolgen/dense1/swish', '/encoder13/smolgen/ln1/w/scale', '/encoder13/smolgen/ln1/w/bias']
+  outputs: ['/encoder13/smolgen/ln1']
+0687 /encoder13/smolgen/dense2/w (MatMul)
+  inputs: ['/encoder13/smolgen/ln1', '/encoder13/smolgen/dense2/w/w']
+  outputs: ['/encoder13/smolgen/dense2/w']
+0688 /encoder13/smolgen/dense2/b (Add)
+  inputs: ['/encoder13/smolgen/dense2/w', '/encoder13/smolgen/dense2/b/w']
+  outputs: ['/encoder13/smolgen/dense2/b']
+0689 /encoder13/smolgen/dense2/swish/sigmoid (Sigmoid)
+  inputs: ['/encoder13/smolgen/dense2/b']
+  outputs: ['/encoder13/smolgen/dense2/swish/sigmoid']
+0690 /encoder13/smolgen/dense2/swish (Mul)
+  inputs: ['/encoder13/smolgen/dense2/swish/sigmoid', '/encoder13/smolgen/dense2/b']
+  outputs: ['/encoder13/smolgen/dense2/swish']
+0691 /encoder13/smolgen/ln2 (LayerNormalization)
+  inputs: ['/encoder13/smolgen/dense2/swish', '/encoder13/smolgen/ln2/w/scale', '/encoder13/smolgen/ln2/w/bias']
+  outputs: ['/encoder13/smolgen/ln2']
+0692 /encoder13/smolgen/gen_from/reshape (Reshape)
+  inputs: ['/encoder13/smolgen/ln2', '/const/encoder13/smolgen/gen_from/shape']
+  outputs: ['/encoder13/smolgen/gen_from/reshape']
+0693 /encoder13/smolgen/smol_weight_gen (MatMul)
+  inputs: ['/encoder13/smolgen/gen_from/reshape', '/const/smolgen_w']
+  outputs: ['/encoder13/smolgen/smol_weight_gen']
+0694 /encoder13/smolgen/out/reshape (Reshape)
+  inputs: ['/encoder13/smolgen/smol_weight_gen', '/const/encoder13/smolgen/out/shape']
+  outputs: ['/encoder13/smolgen/out/reshape']
+0695 /encoder13/smolgen_weights (Add)
+  inputs: ['/encoder13/mha/QK/scale', '/encoder13/smolgen/out/reshape']
+  outputs: ['/encoder13/smolgen_weights']
+0696 /encoder13/mha/QK/softmax (Softmax)
+  inputs: ['/encoder13/smolgen_weights']
+  outputs: ['/encoder13/mha/QK/softmax']
+0697 /encoder13/mha/QKV/matmul (MatMul)
+  inputs: ['/encoder13/mha/QK/softmax', '/encoder13/mha/V/transpose']
+  outputs: ['/encoder13/mha/QKV/matmul']
+0698 /encoder13/mha/out/transpose (Transpose)
+  inputs: ['/encoder13/mha/QKV/matmul']
+  outputs: ['/encoder13/mha/out/transpose']
+0699 /encoder13/mha/out/reshape (Reshape)
+  inputs: ['/encoder13/mha/out/transpose', '/const/encoder13/mha/out/shape']
+  outputs: ['/encoder13/mha/out/reshape']
+0700 /encoder13/mha/out/dense/w (MatMul)
+  inputs: ['/encoder13/mha/out/reshape', '/encoder13/mha/out/dense/w/w']
+  outputs: ['/encoder13/mha/out/dense/w']
+0701 /encoder13/mha/out/dense/b (Add)
+  inputs: ['/encoder13/mha/out/dense/w', '/encoder13/mha/out/dense/b/w']
+  outputs: ['/encoder13/mha/out/dense/b']
+0702 /encoder13/alpha*input (Mul)
+  inputs: ['/encoder13/mha/out/dense/b', '/encoder13/alpha*input/w']
+  outputs: ['/encoder13/alpha*input']
+0703 /encoder13/mha/out/skip (Add)
+  inputs: ['/encoder13/alpha*input', '/encoder12/ln2']
+  outputs: ['/encoder13/mha/out/skip']
+0704 /encoder13/ln1 (LayerNormalization)
+  inputs: ['/encoder13/mha/out/skip', '/encoder13/ln1/w/scale', '/encoder13/ln1/w/bias']
+  outputs: ['/encoder13/ln1']
+0705 /encoder13/ffn/dense1/w (MatMul)
+  inputs: ['/encoder13/ln1', '/encoder13/ffn/dense1/w/w']
+  outputs: ['/encoder13/ffn/dense1/w']
+0706 /encoder13/ffn/dense1/b (Add)
+  inputs: ['/encoder13/ffn/dense1/w', '/encoder13/ffn/dense1/b/w']
+  outputs: ['/encoder13/ffn/dense1/b']
+0707 /encoder13/ffn/dense1/mish/softplus (Softplus)
+  inputs: ['/encoder13/ffn/dense1/b']
+  outputs: ['/encoder13/ffn/dense1/mish/softplus']
+0708 /encoder13/ffn/dense1/mish/tanh (Tanh)
+  inputs: ['/encoder13/ffn/dense1/mish/softplus']
+  outputs: ['/encoder13/ffn/dense1/mish/tanh']
+0709 /encoder13/ffn/dense1/mish (Mul)
+  inputs: ['/encoder13/ffn/dense1/mish/tanh', '/encoder13/ffn/dense1/b']
+  outputs: ['/encoder13/ffn/dense1/mish']
+0710 /encoder13/ffn/dense2/w (MatMul)
+  inputs: ['/encoder13/ffn/dense1/mish', '/encoder13/ffn/dense2/w/w']
+  outputs: ['/encoder13/ffn/dense2/w']
+0711 /encoder13/ffn/dense2/b (Add)
+  inputs: ['/encoder13/ffn/dense2/w', '/encoder13/ffn/dense2/b/w']
+  outputs: ['/encoder13/ffn/dense2/b']
+0712 /encoder13/ffn/alpha (Mul)
+  inputs: ['/encoder13/ffn/dense2/b', '/encoder13/ffn/alpha/w']
+  outputs: ['/encoder13/ffn/alpha']
+0713 /encoder13/ffn/skip (Add)
+  inputs: ['/encoder13/ffn/alpha', '/encoder13/ln1']
+  outputs: ['/encoder13/ffn/skip']
+0714 /encoder13/ln2 (LayerNormalization)
+  inputs: ['/encoder13/ffn/skip', '/encoder13/ln2/w/scale', '/encoder13/ln2/w/bias']
+  outputs: ['/encoder13/ln2']
+0715 /encoder14/mha/Q/w (MatMul)
+  inputs: ['/encoder13/ln2', '/encoder14/mha/Q/w/w']
+  outputs: ['/encoder14/mha/Q/w']
+0716 /encoder14/mha/Q/b (Add)
+  inputs: ['/encoder14/mha/Q/w', '/encoder14/mha/Q/b/w']
+  outputs: ['/encoder14/mha/Q/b']
+0717 /encoder14/mha/Q/reshape (Reshape)
+  inputs: ['/encoder14/mha/Q/b', '/const/encoder14/mha/shape']
+  outputs: ['/encoder14/mha/Q/reshape']
+0718 /encoder14/mha/Q/transpose (Transpose)
+  inputs: ['/encoder14/mha/Q/reshape']
+  outputs: ['/encoder14/mha/Q/transpose']
+0719 /encoder14/mha/K/w (MatMul)
+  inputs: ['/encoder13/ln2', '/encoder14/mha/K/w/w']
+  outputs: ['/encoder14/mha/K/w']
+0720 /encoder14/mha/K/b (Add)
+  inputs: ['/encoder14/mha/K/w', '/encoder14/mha/K/b/w']
+  outputs: ['/encoder14/mha/K/b']
+0721 /encoder14/mha/K/reshape (Reshape)
+  inputs: ['/encoder14/mha/K/b', '/const/encoder14/mha/shape']
+  outputs: ['/encoder14/mha/K/reshape']
+0722 /encoder14/mha/K/transpose (Transpose)
+  inputs: ['/encoder14/mha/K/reshape']
+  outputs: ['/encoder14/mha/K/transpose']
+0723 /encoder14/mha/V/w (MatMul)
+  inputs: ['/encoder13/ln2', '/encoder14/mha/V/w/w']
+  outputs: ['/encoder14/mha/V/w']
+0724 /encoder14/mha/V/b (Add)
+  inputs: ['/encoder14/mha/V/w', '/encoder14/mha/V/b/w']
+  outputs: ['/encoder14/mha/V/b']
+0725 /encoder14/mha/V/reshape (Reshape)
+  inputs: ['/encoder14/mha/V/b', '/const/encoder14/mha/shape']
+  outputs: ['/encoder14/mha/V/reshape']
+0726 /encoder14/mha/V/transpose (Transpose)
+  inputs: ['/encoder14/mha/V/reshape']
+  outputs: ['/encoder14/mha/V/transpose']
+0727 /encoder14/mha/QK/matmul (MatMul)
+  inputs: ['/encoder14/mha/Q/transpose', '/encoder14/mha/K/transpose']
+  outputs: ['/encoder14/mha/QK/matmul']
+0728 /encoder14/mha/QK/scale (Mul)
+  inputs: ['/encoder14/mha/QK/matmul', '/encoder14/mha/QK/scale/w']
+  outputs: ['/encoder14/mha/QK/scale']
+0729 /encoder14/smolgen/compress (MatMul)
+  inputs: ['/encoder13/ln2', '/encoder14/smolgen/compress/w']
+  outputs: ['/encoder14/smolgen/compress']
+0730 /encoder14/smolgen/compress/reshape (Reshape)
+  inputs: ['/encoder14/smolgen/compress', '/const/encoder14/smolgen/compress/shape']
+  outputs: ['/encoder14/smolgen/compress/reshape']
+0731 /encoder14/smolgen/dense1/w (MatMul)
+  inputs: ['/encoder14/smolgen/compress/reshape', '/encoder14/smolgen/dense1/w/w']
+  outputs: ['/encoder14/smolgen/dense1/w']
+0732 /encoder14/smolgen/dense1/b (Add)
+  inputs: ['/encoder14/smolgen/dense1/w', '/encoder14/smolgen/dense1/b/w']
+  outputs: ['/encoder14/smolgen/dense1/b']
+0733 /encoder14/smolgen/dense1/swish/sigmoid (Sigmoid)
+  inputs: ['/encoder14/smolgen/dense1/b']
+  outputs: ['/encoder14/smolgen/dense1/swish/sigmoid']
+0734 /encoder14/smolgen/dense1/swish (Mul)
+  inputs: ['/encoder14/smolgen/dense1/swish/sigmoid', '/encoder14/smolgen/dense1/b']
+  outputs: ['/encoder14/smolgen/dense1/swish']
+0735 /encoder14/smolgen/ln1 (LayerNormalization)
+  inputs: ['/encoder14/smolgen/dense1/swish', '/encoder14/smolgen/ln1/w/scale', '/encoder14/smolgen/ln1/w/bias']
+  outputs: ['/encoder14/smolgen/ln1']
+0736 /encoder14/smolgen/dense2/w (MatMul)
+  inputs: ['/encoder14/smolgen/ln1', '/encoder14/smolgen/dense2/w/w']
+  outputs: ['/encoder14/smolgen/dense2/w']
+0737 /encoder14/smolgen/dense2/b (Add)
+  inputs: ['/encoder14/smolgen/dense2/w', '/encoder14/smolgen/dense2/b/w']
+  outputs: ['/encoder14/smolgen/dense2/b']
+0738 /encoder14/smolgen/dense2/swish/sigmoid (Sigmoid)
+  inputs: ['/encoder14/smolgen/dense2/b']
+  outputs: ['/encoder14/smolgen/dense2/swish/sigmoid']
+0739 /encoder14/smolgen/dense2/swish (Mul)
+  inputs: ['/encoder14/smolgen/dense2/swish/sigmoid', '/encoder14/smolgen/dense2/b']
+  outputs: ['/encoder14/smolgen/dense2/swish']
+0740 /encoder14/smolgen/ln2 (LayerNormalization)
+  inputs: ['/encoder14/smolgen/dense2/swish', '/encoder14/smolgen/ln2/w/scale', '/encoder14/smolgen/ln2/w/bias']
+  outputs: ['/encoder14/smolgen/ln2']
+0741 /encoder14/smolgen/gen_from/reshape (Reshape)
+  inputs: ['/encoder14/smolgen/ln2', '/const/encoder14/smolgen/gen_from/shape']
+  outputs: ['/encoder14/smolgen/gen_from/reshape']
+0742 /encoder14/smolgen/smol_weight_gen (MatMul)
+  inputs: ['/encoder14/smolgen/gen_from/reshape', '/const/smolgen_w']
+  outputs: ['/encoder14/smolgen/smol_weight_gen']
+0743 /encoder14/smolgen/out/reshape (Reshape)
+  inputs: ['/encoder14/smolgen/smol_weight_gen', '/const/encoder14/smolgen/out/shape']
+  outputs: ['/encoder14/smolgen/out/reshape']
+0744 /encoder14/smolgen_weights (Add)
+  inputs: ['/encoder14/mha/QK/scale', '/encoder14/smolgen/out/reshape']
+  outputs: ['/encoder14/smolgen_weights']
+0745 /encoder14/mha/QK/softmax (Softmax)
+  inputs: ['/encoder14/smolgen_weights']
+  outputs: ['/encoder14/mha/QK/softmax']
+0746 /encoder14/mha/QKV/matmul (MatMul)
+  inputs: ['/encoder14/mha/QK/softmax', '/encoder14/mha/V/transpose']
+  outputs: ['/encoder14/mha/QKV/matmul']
+0747 /encoder14/mha/out/transpose (Transpose)
+  inputs: ['/encoder14/mha/QKV/matmul']
+  outputs: ['/encoder14/mha/out/transpose']
+0748 /encoder14/mha/out/reshape (Reshape)
+  inputs: ['/encoder14/mha/out/transpose', '/const/encoder14/mha/out/shape']
+  outputs: ['/encoder14/mha/out/reshape']
+0749 /encoder14/mha/out/dense/w (MatMul)
+  inputs: ['/encoder14/mha/out/reshape', '/encoder14/mha/out/dense/w/w']
+  outputs: ['/encoder14/mha/out/dense/w']
+0750 /encoder14/mha/out/dense/b (Add)
+  inputs: ['/encoder14/mha/out/dense/w', '/encoder14/mha/out/dense/b/w']
+  outputs: ['/encoder14/mha/out/dense/b']
+0751 /encoder14/alpha*input (Mul)
+  inputs: ['/encoder14/mha/out/dense/b', '/encoder14/alpha*input/w']
+  outputs: ['/encoder14/alpha*input']
+0752 /encoder14/mha/out/skip (Add)
+  inputs: ['/encoder14/alpha*input', '/encoder13/ln2']
+  outputs: ['/encoder14/mha/out/skip']
+0753 /encoder14/ln1 (LayerNormalization)
+  inputs: ['/encoder14/mha/out/skip', '/encoder14/ln1/w/scale', '/encoder14/ln1/w/bias']
+  outputs: ['/encoder14/ln1']
+0754 /encoder14/ffn/dense1/w (MatMul)
+  inputs: ['/encoder14/ln1', '/encoder14/ffn/dense1/w/w']
+  outputs: ['/encoder14/ffn/dense1/w']
+0755 /encoder14/ffn/dense1/b (Add)
+  inputs: ['/encoder14/ffn/dense1/w', '/encoder14/ffn/dense1/b/w']
+  outputs: ['/encoder14/ffn/dense1/b']
+0756 /encoder14/ffn/dense1/mish/softplus (Softplus)
+  inputs: ['/encoder14/ffn/dense1/b']
+  outputs: ['/encoder14/ffn/dense1/mish/softplus']
+0757 /encoder14/ffn/dense1/mish/tanh (Tanh)
+  inputs: ['/encoder14/ffn/dense1/mish/softplus']
+  outputs: ['/encoder14/ffn/dense1/mish/tanh']
+0758 /encoder14/ffn/dense1/mish (Mul)
+  inputs: ['/encoder14/ffn/dense1/mish/tanh', '/encoder14/ffn/dense1/b']
+  outputs: ['/encoder14/ffn/dense1/mish']
+0759 /encoder14/ffn/dense2/w (MatMul)
+  inputs: ['/encoder14/ffn/dense1/mish', '/encoder14/ffn/dense2/w/w']
+  outputs: ['/encoder14/ffn/dense2/w']
+0760 /encoder14/ffn/dense2/b (Add)
+  inputs: ['/encoder14/ffn/dense2/w', '/encoder14/ffn/dense2/b/w']
+  outputs: ['/encoder14/ffn/dense2/b']
+0761 /encoder14/ffn/alpha (Mul)
+  inputs: ['/encoder14/ffn/dense2/b', '/encoder14/ffn/alpha/w']
+  outputs: ['/encoder14/ffn/alpha']
+0762 /encoder14/ffn/skip (Add)
+  inputs: ['/encoder14/ffn/alpha', '/encoder14/ln1']
+  outputs: ['/encoder14/ffn/skip']
+0763 /encoder14/ln2 (LayerNormalization)
+  inputs: ['/encoder14/ffn/skip', '/encoder14/ln2/w/scale', '/encoder14/ln2/w/bias']
+  outputs: ['/encoder14/ln2']
+0764 /policy/dense1/matmul (MatMul)
+  inputs: ['/encoder14/ln2', '/policy/dense1/matmul/w']
+  outputs: ['/policy/dense1/matmul']
+0765 /policy/dense1/add (Add)
+  inputs: ['/policy/dense1/matmul', '/policy/dense1/add/w']
+  outputs: ['/policy/dense1/add']
+0766 /policy/dense1/mish/softplus (Softplus)
+  inputs: ['/policy/dense1/add']
+  outputs: ['/policy/dense1/mish/softplus']
+0767 /policy/dense1/mish/tanh (Tanh)
+  inputs: ['/policy/dense1/mish/softplus']
+  outputs: ['/policy/dense1/mish/tanh']
+0768 /policy/dense1/mish (Mul)
+  inputs: ['/policy/dense1/mish/tanh', '/policy/dense1/add']
+  outputs: ['/policy/dense1/mish']
+0769 /policy/Q/matmul (MatMul)
+  inputs: ['/policy/dense1/mish', '/policy/Q/matmul/w']
+  outputs: ['/policy/Q/matmul']
+0770 /policy/Q/add (Add)
+  inputs: ['/policy/Q/matmul', '/policy/Q/add/w']
+  outputs: ['/policy/Q/add']
+0771 /policy/Q/reshape (Reshape)
+  inputs: ['/policy/Q/add', '/const/QK_shape']
+  outputs: ['/policy/Q/reshape']
+0772 /policy/K/matmul (MatMul)
+  inputs: ['/policy/dense1/mish', '/policy/K/matmul/w']
+  outputs: ['/policy/K/matmul']
+0773 /policy/K/add (Add)
+  inputs: ['/policy/K/matmul', '/policy/K/add/w']
+  outputs: ['/policy/K/add']
+0774 /policy/K/reshape (Reshape)
+  inputs: ['/policy/K/add', '/const/QK_shape']
+  outputs: ['/policy/K/reshape']
+0775 /policy/K/transpose (Transpose)
+  inputs: ['/policy/K/reshape']
+  outputs: ['/policy/K/transpose']
+0776 /policy/matmul (MatMul)
+  inputs: ['/policy/Q/reshape', '/policy/K/transpose']
+  outputs: ['/policy/matmul']
+0777 /policy/scale (Mul)
+  inputs: ['/policy/matmul', '/policy/scale/w']
+  outputs: ['/policy/scale']
+0778 policy/promotion/slice (Slice)
+  inputs: ['/policy/K/reshape', 'policy/promotion/slice/starts', 'policy/promotion/slice/ends']
+  outputs: ['policy/promotion/slice']
+0779 /policy/promotion/matmul (MatMul)
+  inputs: ['policy/promotion/slice', '/policy/promotion/matmul/w']
+  outputs: ['/policy/promotion/matmul']
+0780 /policy/promotion/transpose (Transpose)
+  inputs: ['/policy/promotion/matmul']
+  outputs: ['/policy/promotion/transpose']
+0781 /policy/promotion/split (Split)
+  inputs: ['/policy/promotion/transpose', '/policy/promotion/split/split']
+  outputs: ['/policy/promotion/split/out1', '/policy/promotion/split/out2']
+0782 /policy/promotion/add (Add)
+  inputs: ['/policy/promotion/split/out1', '/policy/promotion/split/out2']
+  outputs: ['/policy/promotion/add']
+0783 /policy/promotion/transpose2 (Transpose)
+  inputs: ['/policy/promotion/add']
+  outputs: ['/policy/promotion/transpose2']
+0784 /policy/promotion/reshape (Reshape)
+  inputs: ['/policy/promotion/transpose2', '/const/policy_promotion_shape']
+  outputs: ['/policy/promotion/reshape']
+0785 policy/promotion/slice2 (Slice)
+  inputs: ['/policy/scale', 'policy/promotion/slice2/starts', 'policy/promotion/slice2/ends']
+  outputs: ['policy/promotion/slice2']
+0786 /policy/promotion/reshape2 (Reshape)
+  inputs: ['policy/promotion/slice2', '/const/policy_promotion_shape2']
+  outputs: ['/policy/promotion/reshape2']
+0787 /policy/promotion/concat (Concat)
+  inputs: ['/policy/promotion/reshape2', '/policy/promotion/reshape2', '/policy/promotion/reshape2']
+  outputs: ['/policy/promotion/concat']
+0788 /policy/promotion/reshape3 (Reshape)
+  inputs: ['/policy/promotion/concat', '/const/policy_promotion_shape3']
+  outputs: ['/policy/promotion/reshape3']
+0789 /policy/promotion/add2 (Add)
+  inputs: ['/policy/promotion/reshape3', '/policy/promotion/reshape']
+  outputs: ['/policy/promotion/add2']
+0790 /policy/promotion/reshape4 (Reshape)
+  inputs: ['/policy/promotion/add2', '/const/policy_promotion_shape4']
+  outputs: ['/policy/promotion/reshape4']
+0791 /policy/concat (Concat)
+  inputs: ['/policy/scale', '/policy/promotion/reshape4']
+  outputs: ['/policy/concat']
+0792 /policy/reshape (Reshape)
+  inputs: ['/policy/concat', '/const/policy_out_shape']
+  outputs: ['/policy/reshape']
+0793 /output/policy (Gather)
+  inputs: ['/policy/reshape', '/const/mapping_table']
+  outputs: ['/output/policy']
+0794 /value/embed/matmul (MatMul)
+  inputs: ['/encoder14/ln2', '/value/embed/matmul/w']
+  outputs: ['/value/embed/matmul']
+0795 /value/embed/add (Add)
+  inputs: ['/value/embed/matmul', '/value/embed/add/w']
+  outputs: ['/value/embed/add']
+0796 /value/embed/mish/softplus (Softplus)
+  inputs: ['/value/embed/add']
+  outputs: ['/value/embed/mish/softplus']
+0797 /value/embed/mish/tanh (Tanh)
+  inputs: ['/value/embed/mish/softplus']
+  outputs: ['/value/embed/mish/tanh']
+0798 /value/embed/mish (Mul)
+  inputs: ['/value/embed/mish/tanh', '/value/embed/add']
+  outputs: ['/value/embed/mish']
+0799 /value/reshape (Reshape)
+  inputs: ['/value/embed/mish', '/const/value_shape']
+  outputs: ['/value/reshape']
+0800 /value/dense1/matmul (MatMul)
+  inputs: ['/value/reshape', '/value/dense1/matmul/w']
+  outputs: ['/value/dense1/matmul']
+0801 /value/dense1/add (Add)
+  inputs: ['/value/dense1/matmul', '/value/dense1/add/w']
+  outputs: ['/value/dense1/add']
+0802 /value/dense1/mish/softplus (Softplus)
+  inputs: ['/value/dense1/add']
+  outputs: ['/value/dense1/mish/softplus']
+0803 /value/dense1/mish/tanh (Tanh)
+  inputs: ['/value/dense1/mish/softplus']
+  outputs: ['/value/dense1/mish/tanh']
+0804 /value/dense1/mish (Mul)
+  inputs: ['/value/dense1/mish/tanh', '/value/dense1/add']
+  outputs: ['/value/dense1/mish']
+0805 /value/dense2/matmul (MatMul)
+  inputs: ['/value/dense1/mish', '/value/dense2/matmul/w']
+  outputs: ['/value/dense2/matmul']
+0806 /value/dense2/add (Add)
+  inputs: ['/value/dense2/matmul', '/value/dense2/add/w']
+  outputs: ['/value/dense2/add']
+0807 /output/wdl (Softmax)
+  inputs: ['/value/dense2/add']
+  outputs: ['/output/wdl']
+0808 /mlh/embed/matmul (MatMul)
+  inputs: ['/encoder14/ln2', '/mlh/embed/matmul/w']
+  outputs: ['/mlh/embed/matmul']
+0809 /mlh/embed/add (Add)
+  inputs: ['/mlh/embed/matmul', '/mlh/embed/add/w']
+  outputs: ['/mlh/embed/add']
+0810 /mlh/embed/mish/softplus (Softplus)
+  inputs: ['/mlh/embed/add']
+  outputs: ['/mlh/embed/mish/softplus']
+0811 /mlh/embed/mish/tanh (Tanh)
+  inputs: ['/mlh/embed/mish/softplus']
+  outputs: ['/mlh/embed/mish/tanh']
+0812 /mlh/embed/mish (Mul)
+  inputs: ['/mlh/embed/mish/tanh', '/mlh/embed/add']
+  outputs: ['/mlh/embed/mish']
+0813 /mlh/reshape (Reshape)
+  inputs: ['/mlh/embed/mish', '/const/mlh_shape']
+  outputs: ['/mlh/reshape']
+0814 /mlh/dense1/matmul (MatMul)
+  inputs: ['/mlh/reshape', '/mlh/dense1/matmul/w']
+  outputs: ['/mlh/dense1/matmul']
+0815 /mlh/dense1/add (Add)
+  inputs: ['/mlh/dense1/matmul', '/mlh/dense1/add/w']
+  outputs: ['/mlh/dense1/add']
+0816 /mlh/dense1/mish/softplus (Softplus)
+  inputs: ['/mlh/dense1/add']
+  outputs: ['/mlh/dense1/mish/softplus']
+0817 /mlh/dense1/mish/tanh (Tanh)
+  inputs: ['/mlh/dense1/mish/softplus']
+  outputs: ['/mlh/dense1/mish/tanh']
+0818 /mlh/dense1/mish (Mul)
+  inputs: ['/mlh/dense1/mish/tanh', '/mlh/dense1/add']
+  outputs: ['/mlh/dense1/mish']
+0819 /mlh/dense2/matmul (MatMul)
+  inputs: ['/mlh/dense1/mish', '/mlh/dense2/matmul/w']
+  outputs: ['/mlh/dense2/matmul']
+0820 /mlh/dense2/add (Add)
+  inputs: ['/mlh/dense2/matmul', '/mlh/dense2/add/w']
+  outputs: ['/mlh/dense2/add']
+0821 /output/mlh (Relu)
+  inputs: ['/mlh/dense2/add']
+  outputs: ['/output/mlh']

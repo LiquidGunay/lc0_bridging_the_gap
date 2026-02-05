@@ -1,0 +1,21 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+lc0jax.egg-info/
+
+# Data outputs
+/data/runs/
+/data/activations/
+/data/concepts/
+/data/lichess/
+/data/lc0-training/
+/data/logs/
+/data/**/*.npz
+/data/**/*.pgn
+/data/**/*.fens
+/data/**/*.tar
+/data/**/*.tar.gz
+/data/**/*.tgz
+/data/**/*.zst
+/data/**/*.gz

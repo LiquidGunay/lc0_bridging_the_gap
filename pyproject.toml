@@ -1,0 +1,53 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lc0jax"
+version = "0.1.0"
+description = "LC0 inference in JAX/Flax and Schut-style concept discovery"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "Apache-2.0"}
+authors = [
+  {name = "lc0jax contributors"}
+]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: Apache Software License",
+]
+dependencies = [
+  "jax",
+  "jaxlib",
+  "flax",
+  "numpy",
+  "scipy",
+  "python-chess",
+  "protobuf",
+  "onnx",
+  "onnxruntime",
+  "tqdm",
+  "rich",
+  "pandas",
+  "zstandard",
+  "scikit-learn",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest",
+  "ruff",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["lc0jax*"]
+
+[tool.setuptools.package-data]
+lc0jax = ["policy_moves.txt", "policy_attn_map.txt", "proto/*.proto"]
+
+[tool.ruff]
+line-length = 100
+
+[tool.pytest.ini_options]
+addopts = "-q"
