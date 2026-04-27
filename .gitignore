@@ -19,3 +19,4 @@ lc0jax.egg-info/
 /data/**/*.tgz
 /data/**/*.zst
 /data/**/*.gz
+chess-dfm-jax/

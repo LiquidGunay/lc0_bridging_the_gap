@@ -26,7 +26,7 @@ LICHESS_STANDARD_INDEX = "https://database.lichess.org/standard/"
 LICHESS_STANDARD_SHA256 = "https://database.lichess.org/standard/sha256sums.txt"
 LICHESS_BROADCAST_API = "https://lichess.org/api/broadcast"
 LICHESS_BROADCAST_TOP = "https://lichess.org/api/broadcast/top"
-LICHESS_PUZZLE_URL = "https://database.lichess.org/puzzles/lichess_db_puzzle.csv.zst"
+LICHESS_PUZZLE_URL = "https://database.lichess.org/lichess_db_puzzle.csv.zst"
 LC0_TRAINING_INDEX = "https://storage.lczero.org/files/training_data/"
 
 
@@ -264,6 +264,10 @@ def cmd_lichess_puzzles(args: argparse.Namespace) -> int:
         raise RuntimeError("--out-fens is required for lichess-puzzles.")
     os.makedirs(os.path.dirname(out_fens), exist_ok=True)
 
+    out_jsonl = args.out_jsonl
+    if out_jsonl:
+        os.makedirs(os.path.dirname(out_jsonl), exist_ok=True)
+
     try:
         import chess  # type: ignore
     except ImportError as exc:  # pragma: no cover
@@ -272,38 +276,52 @@ def cmd_lichess_puzzles(args: argparse.Namespace) -> int:
     stream, src = _open_puzzle_stream(puzzle_path)
     kept = 0
     seen = 0
+
+    out_f = open(out_fens, "w", encoding="utf-8")
+    out_j = open(out_jsonl, "w", encoding="utf-8") if out_jsonl else None
+
     try:
         reader = csv.DictReader(stream)
-        with open(out_fens, "w", encoding="utf-8") as out_f:
-            for row in reader:
-                seen += 1
+        for row in reader:
+            seen += 1
+            try:
+                rating = int(row.get("Rating", "0"))
+            except ValueError:
+                continue
+            if rating < args.min_rating:
+                continue
+            fen = row.get("FEN") or row.get("Fen") or row.get("fen")
+            if not fen:
+                continue
+            moves = row.get("Moves", "").strip()
+            if not args.raw_fen:
+                if not moves:
+                    continue
+                first_move = moves.split()[0]
                 try:
-                    rating = int(row.get("Rating", "0"))
-                except ValueError:
+                    board = chess.Board(fen)
+                    board.push_uci(first_move)
+                    fen = board.fen()
+                except Exception:
                     continue
-                if rating < args.min_rating:
-                    continue
-                fen = row.get("FEN") or row.get("Fen") or row.get("fen")
-                if not fen:
-                    continue
-                moves = row.get("Moves", "").strip()
-                if not args.raw_fen:
-                    if not moves:
-                        continue
-                    first_move = moves.split()[0]
-                    try:
-                        board = chess.Board(fen)
-                        board.push_uci(first_move)
-                        fen = board.fen()
-                    except Exception:
-                        continue
-                out_f.write(fen + "\n")
-                kept += 1
-                if args.progress_every and kept % args.progress_every == 0:
-                    print(f"Kept: {kept} (seen {seen})", flush=True)
-                if args.max_positions is not None and kept >= args.max_positions:
-                    break
+
+            out_f.write(fen + "\n")
+            if out_j:
+                puzzle_id = row.get("PuzzleId", "")
+                themes = row.get("Themes", "")
+                theme_list = [t.strip() for t in themes.split(" ") if t.strip()]
+                record = {"PuzzleId": puzzle_id, "FEN": fen, "Themes": theme_list, "Rating": rating}
+                out_j.write(json.dumps(record) + "\n")
+
+            kept += 1
+            if args.progress_every and kept % args.progress_every == 0:
+                print(f"Kept: {kept} (seen {seen})", flush=True)
+            if args.max_positions is not None and kept >= args.max_positions:
+                break
     finally:
+        out_f.close()
+        if out_j:
+            out_j.close()
         stream.close()
         if src:
             src.close()
@@ -527,6 +545,7 @@ def main() -> int:
     puzzles.add_argument("--out-dir", default="data/lichess")
     puzzles.add_argument("--csv", default=None, help="Optional local puzzle CSV or .zst path")
     puzzles.add_argument("--out-fens", default="data/lichess/puzzles_2500.fens")
+    puzzles.add_argument("--out-jsonl", default="data/lichess/puzzles_2500.jsonl", help="Optional JSONL file to save tags and metadata")
     puzzles.add_argument("--min-rating", type=int, default=2500)
     puzzles.add_argument("--max-positions", type=int, default=None)
     puzzles.add_argument("--raw-fen", action="store_true", help="Keep the raw puzzle FEN (before first move)")

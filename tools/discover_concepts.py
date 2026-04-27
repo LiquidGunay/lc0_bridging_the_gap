@@ -18,7 +18,7 @@ def main() -> int:
     parser.add_argument("--embeddings-a", required=True)
     parser.add_argument("--embeddings-b", required=True)
     parser.add_argument("--out", required=True)
-    parser.add_argument("--method", default="mean_diff")
+    parser.add_argument("--method", default="svm_cvxpy")
     parser.add_argument("--top-k", type=int, default=20)
     parser.add_argument("--max-samples", type=int, default=None)
     parser.add_argument("--k", type=int, default=8, help="Number of directions for multi-vector methods")
