@@ -59,6 +59,7 @@ The goal is to build an open-source, reproducible pipeline that can load a real 
 - [x] (2026-04-27 00:00Z) Updated `tools/run_full_pipeline.sh` to default to history-aware human activation records when the broadcast PGN is present.
 - [x] (2026-04-27 14:10Z) Ran the first small GCP dynamic-concept smoke pipeline from LC0 MultiPV pairs through flat activation dump, `pairs.npz` materialization, sparse solve, and novelty report under `data/runs/gcp_dynamic_smoke_20260427`.
 - [x] (2026-04-27 14:35Z) Re-ran the GCP dynamic-concept smoke with history-aware trajectory records under `data/runs/gcp_dynamic_smoke_records_20260427`; activation shards carried `activation_keys`, materialization produced a `(1, 65536)` difference matrix, the sparse solve was `optimal`, and the novelty smoke wrote an accepted toy vector.
+- [x] (2026-04-27 14:55Z) Added dynamic concept markdown report cards from `pairs.npz`, solver reports, and novelty reports.
 - [ ] Add teachability evaluation with a weaker LC0 checkpoint or student network and random-prototype baselines.
 
 ## Surprises & Discoveries
