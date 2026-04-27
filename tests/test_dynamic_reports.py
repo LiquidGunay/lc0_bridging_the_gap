@@ -105,6 +105,25 @@ def test_build_dynamic_concept_report_includes_solver_novelty_and_pairs(tmp_path
         ),
         encoding="utf-8",
     )
+    (concept_dir / "prototypes_report.json").write_text(
+        json.dumps(
+            {
+                "split": "train",
+                "direction_key": "direction",
+                "score_summary": {"max": 3.0, "mean": 1.5},
+                "prototypes": [
+                    {
+                        "index": 4,
+                        "score": 3.0,
+                        "best_moves": "e2e4",
+                        "subpar_moves": "d2d4",
+                    }
+                ],
+                "random_controls": [{"index": 0, "score": 0.0}],
+            }
+        ),
+        encoding="utf-8",
+    )
     (concept_dir / "policy_margin_report.json").write_text(
         json.dumps(
             {
@@ -141,6 +160,8 @@ def test_build_dynamic_concept_report_includes_solver_novelty_and_pairs(tmp_path
     assert "- direction key: raw_direction" in report
     assert "- constraint satisfaction: 0.750000" in report
     assert "- margin satisfaction: 0.500000" in report
+    assert "- selected prototypes: 1" in report
+    assert "- top prototype: index=4, score=3.000000, best=e2e4, subpar=d2d4" in report
     assert "- mean delta margin: 0.250000" in report
     assert "- top1 change rate: 0.000000" in report
     assert "- top1 legal masked: True" in report

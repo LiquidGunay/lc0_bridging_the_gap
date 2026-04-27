@@ -28,6 +28,10 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--prototypes",
+        help="Optional prototypes_report.json path. Defaults to <concept>/prototypes_report.json.",
+    )
+    parser.add_argument(
         "--policy-margin",
         help=(
             "Optional policy_margin_report.json path. Defaults to "
@@ -43,6 +47,7 @@ def main() -> int:
         concept_dir=args.concept,
         novelty_path=args.novelty,
         evaluation_path=args.evaluation,
+        prototypes_path=args.prototypes,
         baselines_path=args.baselines,
         policy_margin_path=args.policy_margin,
         top_n=args.top_n,
