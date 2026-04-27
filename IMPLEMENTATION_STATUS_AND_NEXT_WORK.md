@@ -20,6 +20,7 @@ Implemented toward parity:
 - `lc0jax.interpretability.pair_builders` and `tools/materialize_mcts_pairs.py` join rollout-pair JSONL records with trajectory activation shards and write solver-ready `pairs.npz` files containing `differences = psi(best) - psi(subpar)` plus aligned metadata. New trajectory records carry stable activation keys so repeated FENs under different histories do not collide.
 - `lc0jax.interpretability.dynamic_reports` and `tools/build_dynamic_concept_report.py` build markdown report cards from `pairs.npz`, solver `report.json`, and optional `novelty_report.json`.
 - `lc0jax.interpretability.dynamic_baselines` and `tools/dynamic_concept_baselines.py` compare learned dynamic directions against random sparse vectors, shuffled-label projections, and optional shuffled-label sparse solves.
+- `lc0jax.interpretability.dynamic_causal` and `tools/dynamic_policy_margin.py` measure best-vs-subpar policy-logit margin changes before and after patching a dynamic concept direction.
 - `tools/pgn_to_activation_records.py` writes JSONL records with rolling `history_fens`, and `tools/dump_activations.py --records` passes those boards to LC0 encoding instead of using empty history.
 - `tools/run_full_pipeline.sh` now defaults to history-aware human activation records when the broadcast PGN is available; set `HISTORY_HUMAN_RECORDS=0` to keep the old FEN-only path.
 - GCP smoke run `data/runs/gcp_dynamic_smoke_records_20260427` on `pipeline-vm` validated the full dynamic path from LC0 MultiPV search through history-aware flat activation dumping, `pairs.npz` materialization, sparse solve, and novelty reporting.
@@ -37,11 +38,11 @@ Known gaps:
 1. Scale the dynamic pipeline beyond the smoke run.
    Use a nontrivial root set, higher LC0 node budgets, sharding, and held-out pairs. Keep outputs under `data/runs/<RUN_ID>/` and record commands, LC0 version, model checksum, machine type, and node budget.
 
-2. Extend dynamic concept report cards with causal policy-margin effects.
-   The first report cards cover roots, best/subpar moves, PVs, solver stats, pair materialization metadata, and novelty summaries. Add causal policy-margin effects after dynamic patching is wired.
+2. Run dynamic concept reports with causal policy-margin effects.
+   The report tooling now includes roots, best/subpar moves, PVs, solver stats, pair materialization metadata, novelty summaries, baselines, and optional policy-margin patch summaries. Run this on larger dynamic datasets and include the report artifacts.
 
-3. Wire dynamic concept reports.
-   Extend report tooling to include optimal/subpar moves, PVs, constraint satisfaction, novelty curves, and causal policy-margin effects for the discovered dynamic vector.
+3. Add held-out dynamic concept splits.
+   Split by root position or game before solving so constraint satisfaction, novelty, baselines, and policy-margin patching can be reported on held-out pairs.
 
 4. Scale random and shuffled baselines.
    The baseline tool now supports random sparse vectors, shuffled-label projections, and optional shuffled sparse solves. Run it on larger dynamic datasets and add held-out train/test splits by root position.
@@ -70,4 +71,5 @@ Every GCP run should write outputs under `data/runs/<RUN_ID>/` and record the ma
 - 2026-04-27: Initial GCP smoke run `gcp_dynamic_smoke_20260427` completed on `pipeline-vm` (`n2-standard-16` spot, CPU JAX, LC0 v0.32.1 built 2026-04-27), but PR review found that path used FEN-only trajectory activations and lost LC0 history context.
 - 2026-04-27: The builder now writes history-aware `--out-trajectory-records`, activation shards store `activation_keys`, and materialization indexes by those keys when present.
 - 2026-04-27: Replacement GCP smoke run `gcp_dynamic_smoke_records_20260427` completed with history-aware trajectory records. It kept 1 LC0 rollout pair from 20 root FENs, wrote 7 trajectory records, materialized `pairs.npz` with shape `(1, 65536)`, solved a flat sparse concept with CVXPY status `optimal`, and wrote `novelty_report.json` with `positive_rank_fraction=1.0` on the tiny smoke reference set.
+- 2026-04-27: GCP policy-margin smoke ran `tools/dynamic_policy_margin.py` on `gcp_dynamic_smoke_records_20260427` with `alpha=0.1`, wrote `policy_margin_report.json`, and rebuilt `report.md` with the policy-margin section. The legal-masked toy one-pair sample had `mean_delta_margin=0.0` and `skipped_rows=0`, so this validates plumbing rather than concept strength.
 - 2026-04-27: Ruff could not be run because it is not installed in the current `.venv`; line lengths were checked manually for the touched Python files.

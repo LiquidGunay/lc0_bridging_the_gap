@@ -23,10 +23,25 @@ def _layer_norm(x: jnp.ndarray, scale: jnp.ndarray, bias: jnp.ndarray, eps: floa
     return (x - mean) / jnp.sqrt(var + eps) * scale + bias
 
 
+def _reshape_patch_vector(value: jnp.ndarray, patch_vec: jnp.ndarray) -> jnp.ndarray:
+    """Return ``patch_vec`` reshaped/broadcastable to an activation tensor."""
+    if patch_vec.shape == value.shape:
+        return patch_vec
+    if patch_vec.ndim == 1 and patch_vec.shape[0] == value.shape[-1]:
+        return patch_vec
+    if value.ndim == 2 and value.shape[0] % 64 == 0:
+        channels = value.shape[-1]
+        batch = value.shape[0] // 64
+        if patch_vec.ndim == 1 and patch_vec.shape[0] == 64 * channels:
+            patch_vec = patch_vec.reshape((64, channels))
+        if patch_vec.ndim == 2 and patch_vec.shape == (64, channels):
+            return jnp.tile(patch_vec, (batch, 1))
+    return patch_vec
+
+
 def bt4_forward(params: dict, planes: jnp.ndarray, *, capture: bool = False, patch: dict | None = None):
     """Run BT4 forward pass using mapped weights."""
     activations = {} if capture else None
-
     patch_layer = None
     patch_vec = None
     patch_alpha = 1.0
@@ -40,7 +55,8 @@ def bt4_forward(params: dict, planes: jnp.ndarray, *, capture: bool = False, pat
             return value
         if name != patch_layer:
             return value
-        return value + patch_alpha * patch_vec
+        shaped_patch = _reshape_patch_vector(value, patch_vec)
+        return value + patch_alpha * shaped_patch
 
     def save(name: str, value: jnp.ndarray) -> None:
         if activations is not None:

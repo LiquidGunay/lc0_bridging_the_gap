@@ -61,6 +61,7 @@ The goal is to build an open-source, reproducible pipeline that can load a real 
 - [x] (2026-04-27 14:35Z) Re-ran the GCP dynamic-concept smoke with history-aware trajectory records under `data/runs/gcp_dynamic_smoke_records_20260427`; activation shards carried `activation_keys`, materialization produced a `(1, 65536)` difference matrix, the sparse solve was `optimal`, and the novelty smoke wrote an accepted toy vector.
 - [x] (2026-04-27 14:55Z) Added dynamic concept markdown report cards from `pairs.npz`, solver reports, and novelty reports.
 - [x] (2026-04-27 15:05Z) Added random sparse, shuffled-label, and optional shuffled-solve baselines for dynamic concept runs.
+- [x] (2026-04-27 15:45Z) Added dynamic policy-margin patch reports and flat token-direction patch support for best-vs-subpar root move margins.
 - [ ] Add teachability evaluation with a weaker LC0 checkpoint or student network and random-prototype baselines.
 
 ## Surprises & Discoveries
@@ -235,7 +236,7 @@ The goal is to build an open-source, reproducible pipeline that can load a real 
 ## Outcomes & Retrospective
 
 
-- The LC0/JAX substrate and static concept baseline are implemented, but the repository is not yet Schut-faithful. As of 2026-04-27, the initial parity infrastructure now includes square-aware activation modes, a reusable sparse paired-difference solver, dynamic rollout-difference aggregation for stored rollout tensors, and the machine-vs-human SVD novelty metric. The remaining core work is the LC0 MCTS rollout-pair builder, history-aware activations, concept-specific causal policy-margin validation, and teachability filtering.
+- The LC0/JAX substrate and static concept baseline are implemented, but the repository is not yet Schut-faithful. As of 2026-04-27, the initial parity infrastructure now includes square-aware activation modes, a reusable sparse paired-difference solver, LC0 MCTS rollout pairs, history-aware trajectory activations, dynamic report cards, baselines, policy-margin patch reports, and the machine-vs-human SVD novelty metric. The remaining core work is scaling the dynamic runs with held-out splits and adding teachability filtering.
 
 ## Context and Orientation
 

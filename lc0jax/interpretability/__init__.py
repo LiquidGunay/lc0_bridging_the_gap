@@ -24,6 +24,7 @@ from .dynamic_baselines import (
     evaluate_direction,
     random_sparse_directions,
 )
+from .dynamic_causal import policy_margin_report
 from .dynamic_reports import build_dynamic_concept_report
 from .mcts_rollouts import (
     activation_records_for_line,
@@ -61,6 +62,7 @@ __all__ = [
     "dynamic_baseline_report",
     "evaluate_direction",
     "random_sparse_directions",
+    "policy_margin_report",
     "build_dynamic_concept_report",
     "build_rollout_pair_record",
     "activation_records_for_line",

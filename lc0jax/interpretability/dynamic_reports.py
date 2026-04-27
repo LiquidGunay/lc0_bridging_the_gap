@@ -120,12 +120,40 @@ def _baseline_lines(baselines_report: dict[str, Any] | None) -> list[str]:
     ]
 
 
+def _policy_margin_lines(policy_margin_report: dict[str, Any] | None) -> list[str]:
+    if not policy_margin_report:
+        return ["## Policy-Margin Patch", "", "- report: not provided"]
+    return [
+        "## Policy-Margin Patch",
+        "",
+        f"- samples: {policy_margin_report.get('num_pairs', 'n/a')}",
+        f"- layer: {policy_margin_report.get('layer', 'n/a')}",
+        f"- alpha: {policy_margin_report.get('alpha', 'n/a')}",
+        f"- mean base margin: {_format_float(policy_margin_report.get('mean_base_margin'))}",
+        (
+            "- mean patched margin: "
+            f"{_format_float(policy_margin_report.get('mean_patched_margin'))}"
+        ),
+        (
+            "- mean delta margin: "
+            f"{_format_float(policy_margin_report.get('mean_delta_margin'))}"
+        ),
+        (
+            "- fraction delta positive: "
+            f"{_format_float(policy_margin_report.get('fraction_delta_positive'))}"
+        ),
+        f"- top1 change rate: {_format_float(policy_margin_report.get('top1_change_rate'))}",
+        f"- top1 legal masked: {policy_margin_report.get('top1_legal_masked', 'n/a')}",
+    ]
+
+
 def build_dynamic_concept_report(
     *,
     pairs_path: str | Path,
     concept_dir: str | Path,
     novelty_path: str | Path | None = None,
     baselines_path: str | Path | None = None,
+    policy_margin_path: str | Path | None = None,
     top_n: int = 10,
 ) -> str:
     """Return a markdown report for a dynamic concept run."""
@@ -145,6 +173,12 @@ def build_dynamic_concept_report(
         baselines_report = _read_json(candidate) if candidate.exists() else None
     else:
         baselines_report = _read_json(Path(baselines_path))
+
+    if policy_margin_path is None:
+        candidate = concept_dir / "policy_margin_report.json"
+        policy_margin_report = _read_json(candidate) if candidate.exists() else None
+    else:
+        policy_margin_report = _read_json(Path(policy_margin_path))
 
     metadata = pairs["metadata"]
     differences_shape = pairs["differences_shape"]
@@ -187,6 +221,7 @@ def build_dynamic_concept_report(
 
     lines.extend(["", *_novelty_lines(novelty_report), ""])
     lines.extend([*_baseline_lines(baselines_report), ""])
+    lines.extend([*_policy_margin_lines(policy_margin_report), ""])
     lines.extend(
         [
             "## Pair Examples",
