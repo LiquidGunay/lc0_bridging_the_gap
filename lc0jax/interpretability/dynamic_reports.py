@@ -142,6 +142,35 @@ def _evaluation_lines(evaluation_report: dict[str, Any] | None) -> list[str]:
     ]
 
 
+def _prototype_lines(prototypes_report: dict[str, Any] | None) -> list[str]:
+    if not prototypes_report:
+        return ["## Prototypes", "", "- report: not provided"]
+    score_summary = prototypes_report.get("score_summary", {})
+    prototypes = prototypes_report.get("prototypes", [])
+    lines = [
+        "## Prototypes",
+        "",
+        f"- split: {prototypes_report.get('split', 'n/a')}",
+        f"- direction key: {prototypes_report.get('direction_key', 'n/a')}",
+        f"- reverse: {prototypes_report.get('reverse', 'n/a')}",
+        f"- selected prototypes: {len(prototypes)}",
+        f"- random controls: {len(prototypes_report.get('random_controls', []))}",
+        f"- max score: {_format_float(score_summary.get('max'))}",
+        f"- mean score: {_format_float(score_summary.get('mean'))}",
+    ]
+    if prototypes:
+        first = prototypes[0]
+        lines.append(
+            "- top prototype: index={index}, score={score}, best={best}, subpar={subpar}".format(
+                index=first.get("index", "n/a"),
+                score=_format_float(first.get("score")),
+                best=first.get("best_moves", "n/a"),
+                subpar=first.get("subpar_moves", "n/a"),
+            )
+        )
+    return lines
+
+
 def _policy_margin_lines(policy_margin_report: dict[str, Any] | None) -> list[str]:
     if not policy_margin_report:
         return ["## Policy-Margin Patch", "", "- report: not provided"]
@@ -175,6 +204,7 @@ def build_dynamic_concept_report(
     concept_dir: str | Path,
     novelty_path: str | Path | None = None,
     evaluation_path: str | Path | None = None,
+    prototypes_path: str | Path | None = None,
     baselines_path: str | Path | None = None,
     policy_margin_path: str | Path | None = None,
     top_n: int = 10,
@@ -208,6 +238,12 @@ def build_dynamic_concept_report(
         policy_margin_report = _read_json(candidate) if candidate.exists() else None
     else:
         policy_margin_report = _read_json(Path(policy_margin_path))
+
+    if prototypes_path is None:
+        candidate = concept_dir / "prototypes_report.json"
+        prototypes_report = _read_json(candidate) if candidate.exists() else None
+    else:
+        prototypes_report = _read_json(Path(prototypes_path))
 
     metadata = pairs["metadata"]
     differences_shape = pairs["differences_shape"]
@@ -251,6 +287,7 @@ def build_dynamic_concept_report(
 
     lines.extend(["", *_novelty_lines(novelty_report), ""])
     lines.extend([*_evaluation_lines(evaluation_report), ""])
+    lines.extend([*_prototype_lines(prototypes_report), ""])
     lines.extend([*_baseline_lines(baselines_report), ""])
     lines.extend([*_policy_margin_lines(policy_margin_report), ""])
     lines.extend(
