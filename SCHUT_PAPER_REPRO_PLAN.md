@@ -33,6 +33,7 @@ The goal is to accurately reproduce the concept discovery methodology from the S
 - [x] (2026-04-27) Added dynamic concept markdown report cards from `pairs.npz`, solver reports, and novelty reports.
 - [x] (2026-04-27) Added dynamic random/shuffled baseline summaries for learned rollout concept directions.
 - [x] (2026-04-27) Added dynamic policy-margin patch reports for best-vs-subpar root moves.
+- [x] (2026-04-27) Added root-grouped held-out train/test splits for dynamic `pairs.npz` files.
 - [ ] Add teachability filtering and random-prototype baselines.
 
 ## Surprises & Discoveries
@@ -78,11 +79,12 @@ The goal is to accurately reproduce the concept discovery methodology from the S
 - Added dynamic report-card generation for root FENs, best/subpar moves, PVs, scores, solver stats, pair materialization metadata, and novelty summaries.
 - Added random sparse, shuffled-label, and optional shuffled-solve baselines for dynamic concept runs.
 - Added policy-margin patch reports for dynamic concepts, including support for flat `[64 * channels]` directions at token-shaped patch points.
+- Added root-position grouped train/test splitting for dynamic rollout pairs, so constraint satisfaction, baselines, and policy-margin checks can run on held-out roots.
 
 **Next Steps:**
 1. Scale MCTS pair extraction and flat activation dumps on GCP with larger root sets, higher node budgets, and sharded resume support.
 2. Scale dynamic runs with held-out root splits and include report cards, baselines, novelty, and policy-margin patching.
-3. Add teachability filtering with a weaker LC0 checkpoint or student network.
+3. Add teachability filtering with a weaker LC0 checkpoint or student network and random-prototype baselines.
 
 ## Context and Orientation
 
@@ -133,10 +135,11 @@ Dynamic sparse solver example once `pairs.npz` exists:
 
     cd /home/ubuntu/schutpaper
     python tools/materialize_mcts_pairs.py --pairs-jsonl data/runs/<RUN_ID>/mcts_pairs/pairs.jsonl --activations data/runs/<RUN_ID>/activations/trajectory_flat --out data/runs/<RUN_ID>/mcts_pairs/pairs.npz --mode flat
-    python tools/solve_dynamic_concepts.py --pairs data/runs/<RUN_ID>/mcts_pairs/pairs.npz --out data/runs/<RUN_ID>/concepts/dynamic_sparse --mode flat
-    python tools/dynamic_concept_baselines.py --pairs data/runs/<RUN_ID>/mcts_pairs/pairs.npz --concept data/runs/<RUN_ID>/concepts/dynamic_sparse --out data/runs/<RUN_ID>/concepts/dynamic_sparse/baselines_report.json
-    python tools/dynamic_policy_margin.py --pairs data/runs/<RUN_ID>/mcts_pairs/pairs.npz --concept data/runs/<RUN_ID>/concepts/dynamic_sparse --pb models/BT4-1024x15x32h-swa-6147500-policytune-332.pb.gz --out data/runs/<RUN_ID>/concepts/dynamic_sparse/policy_margin_report.json
-    python tools/build_dynamic_concept_report.py --pairs data/runs/<RUN_ID>/mcts_pairs/pairs.npz --concept data/runs/<RUN_ID>/concepts/dynamic_sparse --out data/runs/<RUN_ID>/concepts/dynamic_sparse/report.md
+    python tools/split_dynamic_pairs.py --pairs data/runs/<RUN_ID>/mcts_pairs/pairs.npz --out-train data/runs/<RUN_ID>/mcts_pairs/pairs.train.npz --out-test data/runs/<RUN_ID>/mcts_pairs/pairs.test.npz --test-fraction 0.2 --seed 0
+    python tools/solve_dynamic_concepts.py --pairs data/runs/<RUN_ID>/mcts_pairs/pairs.train.npz --out data/runs/<RUN_ID>/concepts/dynamic_sparse --mode flat
+    python tools/dynamic_concept_baselines.py --pairs data/runs/<RUN_ID>/mcts_pairs/pairs.test.npz --concept data/runs/<RUN_ID>/concepts/dynamic_sparse --out data/runs/<RUN_ID>/concepts/dynamic_sparse/baselines_report.json
+    python tools/dynamic_policy_margin.py --pairs data/runs/<RUN_ID>/mcts_pairs/pairs.test.npz --concept data/runs/<RUN_ID>/concepts/dynamic_sparse --pb models/BT4-1024x15x32h-swa-6147500-policytune-332.pb.gz --out data/runs/<RUN_ID>/concepts/dynamic_sparse/policy_margin_report.json
+    python tools/build_dynamic_concept_report.py --pairs data/runs/<RUN_ID>/mcts_pairs/pairs.test.npz --concept data/runs/<RUN_ID>/concepts/dynamic_sparse --out data/runs/<RUN_ID>/concepts/dynamic_sparse/report.md
 
 Novelty filter example:
 

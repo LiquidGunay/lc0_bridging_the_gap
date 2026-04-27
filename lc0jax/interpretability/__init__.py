@@ -26,6 +26,12 @@ from .dynamic_baselines import (
 )
 from .dynamic_causal import policy_margin_report
 from .dynamic_reports import build_dynamic_concept_report
+from .dynamic_splits import (
+    infer_pair_row_count,
+    root_split_summary,
+    split_pair_indices,
+    subset_pairs_payload,
+)
 from .mcts_rollouts import (
     activation_records_for_line,
     build_rollout_pair_record,
@@ -64,6 +70,10 @@ __all__ = [
     "random_sparse_directions",
     "policy_margin_report",
     "build_dynamic_concept_report",
+    "infer_pair_row_count",
+    "root_split_summary",
+    "split_pair_indices",
+    "subset_pairs_payload",
     "build_rollout_pair_record",
     "activation_records_for_line",
     "pv_to_fens",
