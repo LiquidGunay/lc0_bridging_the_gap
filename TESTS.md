@@ -33,6 +33,7 @@ This document explains why each test exists and what failure it is meant to catc
 - `tests/test_dynamic_evaluation.py` checks held-out dynamic direction evaluation reports and that the CLI defaults to `raw_direction` for margin metrics.
 - `tests/test_dynamic_causal.py` checks best-vs-subpar policy-margin summaries from base and patched logits.
 - `tests/test_dynamic_prototypes.py` checks score-based prototype selection, reversed concept scoring, random controls, metadata propagation, direction-key validation, and the prototype-selection CLI.
+- `tests/test_dynamic_teachability.py` checks JSONL curriculum export from prototype/control reports, including provenance and malformed-row failures.
 - `tests/test_dynamic_splits.py` checks root-grouped train/test splitting for dynamic `pairs.npz` files, including fullmove-insensitive grouping, metadata preservation, explicit custom row keys, and CLI output.
 - `tests/test_model_patch.py` checks that channel-only and flat square-local concept directions can be reshaped for token-shaped model patch points.
 - `tests/test_activations.py` checks that captured BT4 token activations can be reshaped to `[batch, 64, channels]` and projected either by mean pooling or by flattening square-local tokens.

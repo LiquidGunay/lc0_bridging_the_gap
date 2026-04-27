@@ -65,6 +65,7 @@ The goal is to build an open-source, reproducible pipeline that can load a real 
 - [x] (2026-04-27 16:20Z) Added root-grouped train/test splitting for dynamic `pairs.npz` files before scaled held-out evaluation.
 - [x] (2026-04-27 16:40Z) Added explicit held-out dynamic direction evaluation reports for train/test split workflows.
 - [x] (2026-04-27 17:00Z) Added dynamic prototype and random-control selection reports as teachability curriculum inputs.
+- [x] (2026-04-27 17:15Z) Added JSONL teachability curriculum export from dynamic prototype/control reports.
 - [ ] Add teachability evaluation with a weaker LC0 checkpoint or student network and random-prototype baselines.
 
 ## Surprises & Discoveries
@@ -239,7 +240,7 @@ The goal is to build an open-source, reproducible pipeline that can load a real 
 ## Outcomes & Retrospective
 
 
-- The LC0/JAX substrate and static concept baseline are implemented, but the repository is not yet Schut-faithful. As of 2026-04-27, the initial parity infrastructure now includes square-aware activation modes, a reusable sparse paired-difference solver, LC0 MCTS rollout pairs, history-aware trajectory activations, root-grouped held-out splits, held-out direction evaluation, prototype/control selection, dynamic report cards, baselines, policy-margin patch reports, and the machine-vs-human SVD novelty metric. The remaining core work is scaling the dynamic runs on GCP and adding teachability filtering.
+- The LC0/JAX substrate and static concept baseline are implemented, but the repository is not yet Schut-faithful. As of 2026-04-27, the initial parity infrastructure now includes square-aware activation modes, a reusable sparse paired-difference solver, LC0 MCTS rollout pairs, history-aware trajectory activations, root-grouped held-out splits, held-out direction evaluation, prototype/control selection, curriculum export, dynamic report cards, baselines, policy-margin patch reports, and the machine-vs-human SVD novelty metric. The remaining core work is scaling the dynamic runs on GCP and adding teachability filtering.
 
 ## Context and Orientation
 

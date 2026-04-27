@@ -40,6 +40,7 @@ from .dynamic_splits import (
     split_pair_indices,
     subset_pairs_payload,
 )
+from .dynamic_teachability import teachability_curriculum_records
 from .mcts_rollouts import (
     activation_records_for_line,
     build_rollout_pair_record,
@@ -83,6 +84,7 @@ __all__ = [
     "select_random_indices",
     "select_top_indices",
     "build_dynamic_concept_report",
+    "teachability_curriculum_records",
     "infer_pair_row_count",
     "root_fen_group_key",
     "root_split_summary",
