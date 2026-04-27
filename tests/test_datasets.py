@@ -1,3 +1,5 @@
+import json
+
 from lc0jax.interpretability import datasets
 
 
@@ -66,6 +68,64 @@ def test_filter_pgn_stream_multi_time_class():
     )
 
     assert kept == 2
+
+
+def test_pgn_to_activation_records_preserves_history(tmp_path):
+    pgn_text = (
+        '[Event "Rated Classical game"]\n'
+        '[Site "https://lichess.org/hist"]\n'
+        '[Date "2025.12.01"]\n'
+        '[Round "-"]\n'
+        '[White "A"]\n'
+        '[Black "B"]\n'
+        '[Result "1-0"]\n'
+        "\n"
+        "1. e4 e5 2. Nf3 1-0\n"
+    )
+    pgn_path = tmp_path / "game.pgn"
+    out_path = tmp_path / "records.jsonl"
+    pgn_path.write_text(pgn_text, encoding="utf-8")
+
+    written = datasets.pgn_to_activation_records(
+        str(pgn_path),
+        out_path=str(out_path),
+        history_len=3,
+    )
+    records = list(datasets.iter_activation_records(str(out_path)))
+
+    assert written == 3
+    assert len(records) == 3
+    assert records[0]["ply"] == 1
+    assert records[0]["game_id"] == "https://lichess.org/hist"
+    assert len(records[0]["history_fens"]) == 2
+    assert records[0]["history_fens"][-1] == records[0]["fen"]
+    assert len(records[-1]["history_fens"]) == 3
+    assert records[-1]["history_fens"][-1] == records[-1]["fen"]
+
+
+def test_filter_activation_records_by_fens(tmp_path):
+    records_path = tmp_path / "records.jsonl"
+    fens_path = tmp_path / "keep.fens"
+    out_path = tmp_path / "kept.jsonl"
+    records = [
+        {"fen": "fen-a", "history_fens": ["fen-a"]},
+        {"fen": "fen-b", "history_fens": ["fen-b"]},
+    ]
+    records_path.write_text(
+        "\n".join(json.dumps(record) for record in records) + "\n",
+        encoding="utf-8",
+    )
+    fens_path.write_text("fen-b\n", encoding="utf-8")
+
+    kept = datasets.filter_activation_records_by_fens(
+        str(records_path),
+        fens_path=str(fens_path),
+        out_path=str(out_path),
+    )
+    out_records = list(datasets.iter_activation_records(str(out_path)))
+
+    assert kept == 1
+    assert out_records[0]["fen"] == "fen-b"
 
 
 def test_filter_fens_min_ply(tmp_path):

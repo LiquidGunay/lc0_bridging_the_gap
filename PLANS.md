@@ -50,6 +50,16 @@ The goal is to build an open-source, reproducible pipeline that can load a real 
 - [x] (2026-02-04 04:52Z) Fixed concept report/viz tooling to accept a parent run directory; regenerated `concept_report.md` and `concepts_viz.html` for `data/runs/2026-02-02_full`.
 - [x] (2026-02-04 05:12Z) Added FEN filtering utilities (`tools/filter_fens.py`) plus optional pipeline hooks to drop opening positions before activation dumps.
 - [x] (2026-02-04 05:40Z) Added a Lichess puzzles downloader (rating >= 2500 default) and an LC0 search-vs-policy disagreement filter tool.
+- [x] (2026-04-27 00:00Z) Reviewed `REPO_AUDIT_AND_NEXT_STEPS.md` and recorded the current Schut-parity status in `IMPLEMENTATION_STATUS_AND_NEXT_WORK.md`.
+- [x] (2026-04-27 00:00Z) Added square-aware activation projection modes, optional raw token/policy-logit storage, reusable paired-difference sparse solving, dynamic rollout-difference aggregation, and SVD novelty filtering.
+- [x] (2026-04-27 00:00Z) Added a metadata-first LC0 MultiPV rollout-pair extractor (`tools/build_mcts_pairs.py`) that writes root, best PV, selected subpar PVs, scores, trajectory FENs, and history-aware trajectory activation records.
+- [x] (2026-04-27 00:00Z) Verified the Schut-parity infrastructure changes with the full test suite (`33 passed`) and CLI import smoke tests for the new tools.
+- [x] (2026-04-27 00:00Z) Added `tools/materialize_mcts_pairs.py` to join rollout-pair JSONL with trajectory activation shards and write solver-ready `pairs.npz` difference matrices, using stable activation keys when available.
+- [x] (2026-04-27 00:00Z) Added history-aware PGN activation records and `dump_activations.py --records` so PGN-derived inputs can pass rolling history boards into LC0 encoding.
+- [x] (2026-04-27 00:00Z) Updated `tools/run_full_pipeline.sh` to default to history-aware human activation records when the broadcast PGN is present.
+- [x] (2026-04-27 14:10Z) Ran the first small GCP dynamic-concept smoke pipeline from LC0 MultiPV pairs through flat activation dump, `pairs.npz` materialization, sparse solve, and novelty report under `data/runs/gcp_dynamic_smoke_20260427`.
+- [x] (2026-04-27 14:35Z) Re-ran the GCP dynamic-concept smoke with history-aware trajectory records under `data/runs/gcp_dynamic_smoke_records_20260427`; activation shards carried `activation_keys`, materialization produced a `(1, 65536)` difference matrix, the sparse solve was `optimal`, and the novelty smoke wrote an accepted toy vector.
+- [ ] Add teachability evaluation with a weaker LC0 checkpoint or student network and random-prototype baselines.
 
 ## Surprises & Discoveries
 
@@ -89,6 +99,12 @@ The goal is to build an open-source, reproducible pipeline that can load a real 
   Evidence: `tools/elo_bench.py` hit `TimeoutError` mid-game until the timeout was raised.
 - Observation: LC0 chunk-derived FENs always have `fullmove_number=1`, so `min_ply` filters drop everything; use phase/piece filters for self-play chunks.
   Evidence: Filtering `lc0_100k.fens` with `--min-ply 12` kept 0 positions, while phase/piece filtering kept 51,113 positions.
+- Observation: The new audit shows the current static sparse separator and puzzle-tag pipeline is not yet a faithful Schut reproduction.
+  Evidence: `REPO_AUDIT_AND_NEXT_STEPS.md` identifies missing dynamic MCTS rollout pairs, novelty filtering, teachability filtering, and unpooled activation storage.
+- Observation: The first dynamic smoke run found that the broadcast 2400 classical FEN file on the VM was empty, while `data/runs/test_eval_pipeline/lichess/human.eval.fens` had usable test roots.
+  Evidence: Re-running the smoke with 20 eval FEN roots kept 1 LC0 rollout pair, produced 6 trajectory FENs, materialized a `(1, 65536)` flat difference matrix, solved a CVXPY concept with status `optimal`, and wrote a novelty report.
+- Observation: FEN-only trajectory dumps are not sufficient for BT4 dynamic concepts because continuation states need LC0 history planes.
+  Evidence: PR review showed PV child encodings differ with and without history. The rollout builder now emits `trajectory.records.jsonl` with rolling `history_fens` and stable `activation_keys`, the materializer consumes those keys, and `gcp_dynamic_smoke_records_20260427` validated that corrected path with LC0.
 
 ## Decision Log
 
@@ -207,11 +223,17 @@ The goal is to build an open-source, reproducible pipeline that can load a real 
 - Decision: Add a “policy disagreement” filter (LC0 search vs raw policy) to better align with Schut-style novelty filtering.
   Rationale: The paper emphasizes selecting positions where two policies disagree; LC0 search vs no-search is a practical proxy.
   Date/Author: 2026-02-04 / Codex
+- Decision: Keep mean-pooled activation dumps as the backwards-compatible default, but add `--activation-mode flat` and optional raw token storage for Schut-faithful square-aware experiments.
+  Rationale: Existing tools and data expect 2D embeddings, while dynamic concepts need spatial information that mean pooling discards.
+  Date/Author: 2026-04-27 / Codex
+- Decision: Treat dynamic rollout extraction, large activation dumps, large SVD novelty runs, and teachability training as GCP workloads.
+  Rationale: These steps are compute-heavy and should not be run on the local workspace except as fixture-sized smoke tests.
+  Date/Author: 2026-04-27 / Codex
 
 ## Outcomes & Retrospective
 
 
-- Not started yet. This section will be updated after the first milestone completes.
+- The LC0/JAX substrate and static concept baseline are implemented, but the repository is not yet Schut-faithful. As of 2026-04-27, the initial parity infrastructure now includes square-aware activation modes, a reusable sparse paired-difference solver, dynamic rollout-difference aggregation for stored rollout tensors, and the machine-vs-human SVD novelty metric. The remaining core work is the LC0 MCTS rollout-pair builder, history-aware activations, concept-specific causal policy-margin validation, and teachability filtering.
 
 ## Context and Orientation
 

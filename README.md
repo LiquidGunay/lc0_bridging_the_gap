@@ -38,6 +38,12 @@ Record the LC0 version used for ONNX export and the BT4 model checksum (see `AGE
   - `python tools/compare_oracle_flax.py --onnx models/BT4.onnx --pb models/BT4-1024x15x32h-swa-6147500-policytune-332.pb.gz --fens data/fens.txt`
 - Activation dump:
   - `python tools/dump_activations.py --pb models/BT4-1024x15x32h-swa-6147500-policytune-332.pb.gz --fens data/human.fens --out data/activations/human`
+  - History-aware PGN records:
+    `python tools/pgn_to_activation_records.py --pgn data/lichess/broadcasts.pgn --out data/lichess/broadcasts.records.jsonl`
+  - Dump from history-aware records:
+    `python tools/dump_activations.py --pb models/BT4-1024x15x32h-swa-6147500-policytune-332.pb.gz --records data/lichess/broadcasts.records.jsonl --out data/activations/human_history`
+  - For Schut-style square-aware runs, preserve spatial tokens:
+    `python tools/dump_activations.py --pb models/BT4-1024x15x32h-swa-6147500-policytune-332.pb.gz --fens data/human.fens --out data/activations/human_flat --activation-mode flat --store-token-activations`
 - LC0 benchmark:
   - `python tools/lc0_benchmark.py --lc0 /tmp/lc0-src/build/release/lc0 --weights models/BT4-1024x15x32h-swa-6147500-policytune-332.pb.gz --mode benchmark`
 - Export back to LC0:
@@ -46,6 +52,13 @@ Record the LC0 version used for ONNX export and the BT4 model checksum (see `AGE
 - Concept discovery (additional methods):
   - `python tools/discover_concepts.py --embeddings-a data/activations/lc0 --embeddings-b data/activations/human_2000_rapid_classical --out data/concepts/cov_shift_2000 --method cov_shift --k 8 --max-samples 1000`
   - `python tools/discover_concepts.py --embeddings-a data/activations/lc0 --embeddings-b data/activations/human_2000_rapid_classical --out data/concepts/cluster_diff_2000 --method cluster_diff --k 8 --max-samples 1000`
+- Dynamic sparse concepts from precomputed rollout pairs:
+  - Prefer trajectory records for LC0 112-plane inputs so PV continuations keep rolling history:
+    `python tools/dump_activations.py --pb models/BT4-1024x15x32h-swa-6147500-policytune-332.pb.gz --records data/runs/<RUN_ID>/mcts_pairs/trajectory.records.jsonl --out data/runs/<RUN_ID>/activations/trajectory_flat --activation-mode flat --store-token-activations`
+  - `python tools/materialize_mcts_pairs.py --pairs-jsonl data/runs/<RUN_ID>/mcts_pairs/pairs.jsonl --activations data/runs/<RUN_ID>/activations/trajectory_flat --out data/runs/<RUN_ID>/mcts_pairs/pairs.npz --mode flat`
+  - `python tools/solve_dynamic_concepts.py --pairs data/runs/<RUN_ID>/mcts_pairs/pairs.npz --out data/runs/<RUN_ID>/concepts/dynamic_sparse --mode flat`
+- Novelty filtering:
+  - `python tools/filter_novel_concepts.py --concept data/runs/<RUN_ID>/concepts/dynamic_sparse --machine-embeddings data/runs/<RUN_ID>/activations/lc0_flat --human-embeddings data/runs/<RUN_ID>/activations/human_flat --out data/runs/<RUN_ID>/concepts/dynamic_sparse/novelty_report.json`
 - Causal validation (patching across many positions):
   - `python tools/causal_validate.py --concept data/concepts/mean_diff_2000 --embeddings data/activations/human_2000_rapid_classical --pb models/BT4-1024x15x32h-swa-6147500-policytune-332.pb.gz --max-samples 256`
 - Concept report:
@@ -78,6 +91,10 @@ Environment overrides (examples):
 - `BROADCAST_SLEEP=1.0 BROADCAST_MAX_RETRIES=8 BROADCAST_RETRY_BACKOFF=10 ./tools/run_full_pipeline.sh`
 - `FILTER_HUMAN=1 FILTER_MIN_PLY=12 FILTER_MAX_PHASE=0.8 ./tools/run_full_pipeline.sh`
 - `DISAGREE_FILTER=1 DISAGREE_LC0_BIN=/tmp/lc0-src/build/release/lc0 ./tools/run_full_pipeline.sh`
+- `HISTORY_HUMAN_RECORDS=0 ./tools/run_full_pipeline.sh` to force FEN-only human activation dumps.
+
+Large LC0 search, full activation dumps, SVD novelty sweeps on large matrices, and teachability
+training should run on GCP. Keep local runs to unit tests, small smoke datasets, and shape checks.
 
 ## Filtering positions
 
@@ -91,6 +108,8 @@ Phase is normalized to `[0, 1]` with `1.0` = opening and `0.0` = pure endgame.
   - Use `--onnx models/BT4.onnx` to avoid JAX compilation when generating the raw policy logits.
   - For parallel runs: `--shard-count 4 --shard-index 0` (run 0..3 in separate shells and merge outputs).
   - To resume manually: re-run with `--start-line N` and `--append`, optionally `--state-file` to track progress.
+- LC0 MCTS rollout-pair metadata for dynamic concepts:
+  - `python tools/build_mcts_pairs.py --fens data/lichess/broadcasts.filtered.fens --out-jsonl data/runs/<RUN_ID>/mcts_pairs/pairs.jsonl --out-trajectory-records data/runs/<RUN_ID>/mcts_pairs/trajectory.records.jsonl --out-trajectory-fens data/runs/<RUN_ID>/mcts_pairs/trajectory.fens --lc0 /tmp/lc0-src/build/release/lc0 --weights models/BT4-1024x15x32h-swa-6147500-policytune-332.pb.gz --nodes 800 --multipv 4 --max-pairs 100`
 
 ## Data sources
 

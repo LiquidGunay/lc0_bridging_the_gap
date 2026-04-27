@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Iterable, Sequence
 
+import json
 import math
 import re
 
@@ -53,6 +54,83 @@ def iter_fens(path: str) -> Iterable[str]:
             fen = line.strip()
             if fen:
                 yield fen
+
+
+def iter_activation_records(path: str) -> Iterable[dict]:
+    """Yield JSONL activation records with FEN and optional history metadata."""
+    with open(path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                yield json.loads(line)
+
+
+def pgn_to_activation_records(
+    pgn_path: str,
+    *,
+    out_path: str,
+    max_positions: int | None = None,
+    ply_stride: int = 1,
+    history_len: int = 8,
+) -> int:
+    """Write PGN positions as JSONL records with rolling LC0 history FENs."""
+    if ply_stride < 1:
+        raise ValueError("ply_stride must be >= 1")
+    if history_len < 1:
+        raise ValueError("history_len must be >= 1")
+
+    written = 0
+    with open(out_path, "w", encoding="utf-8") as out_file:
+        with open(pgn_path, "r", encoding="utf-8", errors="ignore") as pgn:
+            game_idx = 0
+            while True:
+                game = chess.pgn.read_game(pgn)
+                if game is None:
+                    break
+                game_idx += 1
+                board = game.board()
+                history = [board.fen()]
+                game_id = (
+                    game.headers.get("Site")
+                    or game.headers.get("Event")
+                    or f"game_{game_idx}"
+                )
+                ply_idx = 0
+                for move in game.mainline_moves():
+                    board.push(move)
+                    history.append(board.fen())
+                    if ply_idx % ply_stride == 0:
+                        record = {
+                            "fen": board.fen(),
+                            "history_fens": history[-history_len:],
+                            "game_id": game_id,
+                            "game_index": game_idx - 1,
+                            "ply": board.ply(),
+                        }
+                        out_file.write(json.dumps(record) + "\n")
+                        written += 1
+                        if max_positions is not None and written >= max_positions:
+                            return written
+                    ply_idx += 1
+    return written
+
+
+def filter_activation_records_by_fens(
+    records_path: str,
+    *,
+    fens_path: str,
+    out_path: str,
+) -> int:
+    """Keep activation records whose ``fen`` appears in a newline-delimited FEN file."""
+    keep_fens = set(iter_fens(fens_path))
+    kept = 0
+    with open(out_path, "w", encoding="utf-8") as out_file:
+        for record in iter_activation_records(records_path):
+            if record.get("fen") not in keep_fens:
+                continue
+            out_file.write(json.dumps(record) + "\n")
+            kept += 1
+    return kept
 
 
 def _fen_ply(board: chess.Board) -> int:

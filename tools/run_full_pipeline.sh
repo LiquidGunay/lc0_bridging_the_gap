@@ -25,6 +25,10 @@ BROADCAST_MAX_RETRIES="${BROADCAST_MAX_RETRIES:-5}"
 BROADCAST_RETRY_BACKOFF="${BROADCAST_RETRY_BACKOFF:-5.0}"
 BROADCAST_OUT_PGN="${BROADCAST_OUT_PGN:-${BASE_DIR}/lichess/broadcasts_2400_classical.pgn}"
 BROADCAST_OUT_FENS="${BROADCAST_OUT_FENS:-${BASE_DIR}/lichess/broadcasts_2400_classical.fens}"
+HISTORY_HUMAN_RECORDS="${HISTORY_HUMAN_RECORDS:-1}"
+HISTORY_LEN="${HISTORY_LEN:-8}"
+BROADCAST_OUT_RECORDS="${BROADCAST_OUT_RECORDS:-${BASE_DIR}/lichess/broadcasts_2400_classical.records.jsonl}"
+HUMAN_SELECTED_RECORDS="${HUMAN_SELECTED_RECORDS:-${BASE_DIR}/lichess/human_selected.records.jsonl}"
 
 # LC0 self-play parameters.
 LC0_CHUNK_COUNT="${LC0_CHUNK_COUNT:-2}"
@@ -236,6 +240,7 @@ if [ "$FILTER_DEDUPE" -eq 1 ]; then FILTER_ARGS+=(--dedupe); fi
 if [ -n "$FILTER_PROGRESS_EVERY" ]; then FILTER_ARGS+=(--progress-every "$FILTER_PROGRESS_EVERY"); fi
 
 HUMAN_FENS_FOR_ACT="$BROADCAST_OUT_FENS"
+HUMAN_RECORDS_FOR_ACT=""
 LC0_FENS_FOR_ACT="$LC0_OUT_FENS"
 
 if [ "$FILTER_HUMAN" -eq 1 ]; then
@@ -308,13 +313,46 @@ if [ "$DISAGREE_FILTER" -eq 1 ]; then
   HUMAN_FENS_FOR_ACT="$DISAGREE_OUT_FENS"
 fi
 
+if [ "$HISTORY_HUMAN_RECORDS" -eq 1 ]; then
+  if [ -f "$BROADCAST_OUT_PGN" ]; then
+    if should_skip_file "$BROADCAST_OUT_RECORDS"; then
+      echo "[$(timestamp)] skipping activation record build (existing $BROADCAST_OUT_RECORDS)"
+    else
+      run_fg "$PYTHON_BIN" tools/pgn_to_activation_records.py \
+        --pgn "$BROADCAST_OUT_PGN" \
+        --out "$BROADCAST_OUT_RECORDS" \
+        --history-len "$HISTORY_LEN"
+    fi
+
+    if [ "$HUMAN_FENS_FOR_ACT" = "$BROADCAST_OUT_FENS" ]; then
+      HUMAN_RECORDS_FOR_ACT="$BROADCAST_OUT_RECORDS"
+    else
+      if should_skip_file "$HUMAN_SELECTED_RECORDS"; then
+        echo "[$(timestamp)] skipping activation record filtering (existing $HUMAN_SELECTED_RECORDS)"
+      else
+        run_fg "$PYTHON_BIN" tools/filter_activation_records.py \
+          --records "$BROADCAST_OUT_RECORDS" \
+          --fens "$HUMAN_FENS_FOR_ACT" \
+          --out "$HUMAN_SELECTED_RECORDS"
+      fi
+      HUMAN_RECORDS_FOR_ACT="$HUMAN_SELECTED_RECORDS"
+    fi
+  else
+    echo "[$(timestamp)] broadcast PGN missing; falling back to FEN-only human activations"
+  fi
+fi
+
 # Activation dumps (sequential).
 if should_skip_dir_done "$HUMAN_ACT_OUT"; then
   echo "[$(timestamp)] skipping human activation dump (done.txt present)"
 else
+  HUMAN_DUMP_INPUT=(--fens "$HUMAN_FENS_FOR_ACT")
+  if [ -n "$HUMAN_RECORDS_FOR_ACT" ]; then
+    HUMAN_DUMP_INPUT=(--records "$HUMAN_RECORDS_FOR_ACT")
+  fi
   run_fg "$PYTHON_BIN" tools/dump_activations.py \
     --pb "$PB_FILE" \
-    --fens "$HUMAN_FENS_FOR_ACT" \
+    "${HUMAN_DUMP_INPUT[@]}" \
     --out "$HUMAN_ACT_OUT" \
     --batch-size "$BATCH_SIZE" \
     --shard-size "$SHARD_SIZE" \
