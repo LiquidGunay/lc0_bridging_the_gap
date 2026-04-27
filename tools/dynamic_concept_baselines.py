@@ -8,18 +8,8 @@ from pathlib import Path
 
 import numpy as np
 
+from lc0jax.interpretability.dynamic_artifacts import load_concept_direction
 from lc0jax.interpretability.dynamic_baselines import dynamic_baseline_report
-
-
-def _load_direction(path: Path) -> np.ndarray:
-    concept_file = path / "concept_direction.npz" if path.is_dir() else path
-    data = np.load(concept_file, allow_pickle=True)
-    direction = data["direction"]
-    if direction.ndim == 2:
-        if direction.shape[1] != 1:
-            raise ValueError("Dynamic baseline tool currently expects one concept direction")
-        direction = direction[:, 0]
-    return np.asarray(direction)
 
 
 def main() -> int:
@@ -46,7 +36,7 @@ def main() -> int:
         raise KeyError("pairs.npz must contain materialized 'differences'")
     report = dynamic_baseline_report(
         pair_data["differences"],
-        _load_direction(Path(args.concept)),
+        load_concept_direction(Path(args.concept)),
         margin=args.margin,
         random_count=args.random_count,
         shuffled_label_count=args.shuffled_label_count,

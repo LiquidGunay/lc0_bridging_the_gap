@@ -85,6 +85,23 @@ def test_build_dynamic_concept_report_includes_solver_novelty_and_pairs(tmp_path
         ),
         encoding="utf-8",
     )
+    (concept_dir / "heldout_eval_report.json").write_text(
+        json.dumps(
+            {
+                "split": "test",
+                "num_pairs": 3,
+                "dimension": 8,
+                "nonzero_features": 1,
+                "evaluation": {
+                    "constraint_satisfaction": 0.75,
+                    "margin_satisfaction": 0.5,
+                    "mean_score": 1.25,
+                    "min_score": -0.25,
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
     (concept_dir / "policy_margin_report.json").write_text(
         json.dumps(
             {
@@ -115,6 +132,9 @@ def test_build_dynamic_concept_report_includes_solver_novelty_and_pairs(tmp_path
     assert "- vector 0: novelty_area=0.125000" in report
     assert "- actual constraint satisfaction: 1.000000" in report
     assert "- random sparse constraint satisfaction mean: 0.250000" in report
+    assert "- split: test" in report
+    assert "- constraint satisfaction: 0.750000" in report
+    assert "- margin satisfaction: 0.500000" in report
     assert "- mean delta margin: 0.250000" in report
     assert "- top1 change rate: 0.000000" in report
     assert "- top1 legal masked: True" in report

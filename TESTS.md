@@ -30,6 +30,7 @@ This document explains why each test exists and what failure it is meant to catc
 - `tests/test_build_mcts_pairs.py` checks that MCTS pair extraction fails fast by default on expected per-position errors and only skips them when `--skip-errors` is explicit.
 - `tests/test_dynamic_reports.py` checks that dynamic report cards include solver status, pair materialization metadata, novelty summaries, and best/subpar PV examples.
 - `tests/test_dynamic_baselines.py` checks constraint-satisfaction metrics plus random sparse and shuffled-label baseline summaries.
+- `tests/test_dynamic_evaluation.py` checks held-out dynamic direction evaluation reports and the corresponding CLI JSON output.
 - `tests/test_dynamic_causal.py` checks best-vs-subpar policy-margin summaries from base and patched logits.
 - `tests/test_dynamic_splits.py` checks root-grouped train/test splitting for dynamic `pairs.npz` files, including fullmove-insensitive grouping, metadata preservation, explicit custom row keys, and CLI output.
 - `tests/test_model_patch.py` checks that channel-only and flat square-local concept directions can be reshaped for token-shaped model patch points.

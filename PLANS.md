@@ -63,6 +63,7 @@ The goal is to build an open-source, reproducible pipeline that can load a real 
 - [x] (2026-04-27 15:05Z) Added random sparse, shuffled-label, and optional shuffled-solve baselines for dynamic concept runs.
 - [x] (2026-04-27 15:45Z) Added dynamic policy-margin patch reports and flat token-direction patch support for best-vs-subpar root move margins.
 - [x] (2026-04-27 16:20Z) Added root-grouped train/test splitting for dynamic `pairs.npz` files before scaled held-out evaluation.
+- [x] (2026-04-27 16:40Z) Added explicit held-out dynamic direction evaluation reports for train/test split workflows.
 - [ ] Add teachability evaluation with a weaker LC0 checkpoint or student network and random-prototype baselines.
 
 ## Surprises & Discoveries
@@ -237,7 +238,7 @@ The goal is to build an open-source, reproducible pipeline that can load a real 
 ## Outcomes & Retrospective
 
 
-- The LC0/JAX substrate and static concept baseline are implemented, but the repository is not yet Schut-faithful. As of 2026-04-27, the initial parity infrastructure now includes square-aware activation modes, a reusable sparse paired-difference solver, LC0 MCTS rollout pairs, history-aware trajectory activations, root-grouped held-out splits, dynamic report cards, baselines, policy-margin patch reports, and the machine-vs-human SVD novelty metric. The remaining core work is scaling the dynamic runs on GCP and adding teachability filtering.
+- The LC0/JAX substrate and static concept baseline are implemented, but the repository is not yet Schut-faithful. As of 2026-04-27, the initial parity infrastructure now includes square-aware activation modes, a reusable sparse paired-difference solver, LC0 MCTS rollout pairs, history-aware trajectory activations, root-grouped held-out splits, held-out direction evaluation, dynamic report cards, baselines, policy-margin patch reports, and the machine-vs-human SVD novelty metric. The remaining core work is scaling the dynamic runs on GCP and adding teachability filtering.
 
 ## Context and Orientation
 

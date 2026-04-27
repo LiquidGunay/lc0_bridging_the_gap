@@ -120,6 +120,27 @@ def _baseline_lines(baselines_report: dict[str, Any] | None) -> list[str]:
     ]
 
 
+def _evaluation_lines(evaluation_report: dict[str, Any] | None) -> list[str]:
+    if not evaluation_report:
+        return ["## Held-Out Evaluation", "", "- report: not provided"]
+    metrics = evaluation_report.get("evaluation", {})
+    return [
+        "## Held-Out Evaluation",
+        "",
+        f"- split: {evaluation_report.get('split', 'n/a')}",
+        f"- samples: {evaluation_report.get('num_pairs', 'n/a')}",
+        f"- dimension: {evaluation_report.get('dimension', 'n/a')}",
+        f"- nonzero features: {evaluation_report.get('nonzero_features', 'n/a')}",
+        (
+            "- constraint satisfaction: "
+            f"{_format_float(metrics.get('constraint_satisfaction'))}"
+        ),
+        f"- margin satisfaction: {_format_float(metrics.get('margin_satisfaction'))}",
+        f"- mean score: {_format_float(metrics.get('mean_score'))}",
+        f"- min score: {_format_float(metrics.get('min_score'))}",
+    ]
+
+
 def _policy_margin_lines(policy_margin_report: dict[str, Any] | None) -> list[str]:
     if not policy_margin_report:
         return ["## Policy-Margin Patch", "", "- report: not provided"]
@@ -152,6 +173,7 @@ def build_dynamic_concept_report(
     pairs_path: str | Path,
     concept_dir: str | Path,
     novelty_path: str | Path | None = None,
+    evaluation_path: str | Path | None = None,
     baselines_path: str | Path | None = None,
     policy_margin_path: str | Path | None = None,
     top_n: int = 10,
@@ -173,6 +195,12 @@ def build_dynamic_concept_report(
         baselines_report = _read_json(candidate) if candidate.exists() else None
     else:
         baselines_report = _read_json(Path(baselines_path))
+
+    if evaluation_path is None:
+        candidate = concept_dir / "heldout_eval_report.json"
+        evaluation_report = _read_json(candidate) if candidate.exists() else None
+    else:
+        evaluation_report = _read_json(Path(evaluation_path))
 
     if policy_margin_path is None:
         candidate = concept_dir / "policy_margin_report.json"
@@ -220,6 +248,7 @@ def build_dynamic_concept_report(
         )
 
     lines.extend(["", *_novelty_lines(novelty_report), ""])
+    lines.extend([*_evaluation_lines(evaluation_report), ""])
     lines.extend([*_baseline_lines(baselines_report), ""])
     lines.extend([*_policy_margin_lines(policy_margin_report), ""])
     lines.extend(
