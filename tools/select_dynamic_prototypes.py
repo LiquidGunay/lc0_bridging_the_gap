@@ -20,6 +20,14 @@ def _load_pair_metadata(path: str | Path) -> dict:
     return {key: data[key] for key in data.files}
 
 
+def _auto_reverse(concept: str | Path) -> bool:
+    path = Path(concept)
+    report_path = path / "report.json" if path.is_dir() else None
+    if report_path is None or not report_path.exists():
+        return False
+    return bool(json.loads(report_path.read_text(encoding="utf-8")).get("reverse", False))
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--pairs", required=True, help="Solver-ready pairs.npz file.")
@@ -32,9 +40,20 @@ def main() -> int:
     parser.add_argument(
         "--direction-key",
         default="direction",
+        choices=["direction", "raw_direction"],
         help="Direction array to use from concept_direction.npz.",
     )
+    parser.add_argument(
+        "--score-mode",
+        choices=["auto", "forward", "reverse"],
+        default="auto",
+        help="Whether to rank largest forward scores or reversed-sign scores.",
+    )
     args = parser.parse_args()
+    if args.score_mode == "auto":
+        reverse = _auto_reverse(args.concept)
+    else:
+        reverse = args.score_mode == "reverse"
 
     report = dynamic_prototype_report(
         load_pair_differences(args.pairs),
@@ -45,9 +64,11 @@ def main() -> int:
         seed=args.seed,
         split_name=args.split_name,
         direction_key=args.direction_key,
+        reverse=reverse,
     )
     report["pairs"] = args.pairs
     report["concept"] = args.concept
+    report["score_mode"] = args.score_mode
 
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)

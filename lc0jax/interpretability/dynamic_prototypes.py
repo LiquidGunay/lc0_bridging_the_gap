@@ -7,15 +7,7 @@ from typing import Any
 import numpy as np
 
 
-PAIR_METADATA_KEYS = (
-    "root_fens",
-    "best_moves",
-    "subpar_moves",
-    "best_score_cp",
-    "subpar_score_cp",
-    "best_pv",
-    "subpar_pv",
-)
+PAIR_METADATA_EXCLUDE_KEYS = frozenset({"differences", "metadata"})
 
 
 def projection_scores(differences: np.ndarray, direction: np.ndarray) -> np.ndarray:
@@ -68,13 +60,27 @@ def select_random_indices(
     return np.asarray(chosen, dtype=np.int64)
 
 
-def _as_list(pair_metadata: dict[str, Any], key: str) -> list[Any]:
-    if key not in pair_metadata:
-        return []
-    value = np.asarray(pair_metadata[key], dtype=object)
-    if value.ndim == 0:
-        return []
-    return value.tolist()
+def _json_value(value: Any) -> Any:
+    if isinstance(value, np.ndarray):
+        return value.tolist()
+    if isinstance(value, np.generic):
+        return value.item()
+    return value
+
+
+def _row_metadata_lists(
+    pair_metadata: dict[str, Any],
+    *,
+    row_count: int,
+) -> dict[str, list[Any]]:
+    metadata = {}
+    for key, value in pair_metadata.items():
+        if key in PAIR_METADATA_EXCLUDE_KEYS:
+            continue
+        array = np.asarray(value, dtype=object)
+        if array.ndim > 0 and array.shape[0] == row_count:
+            metadata[key] = array.tolist()
+    return metadata
 
 
 def _list_get(items: list[Any], idx: int, default: Any = "") -> Any:
@@ -85,17 +91,19 @@ def _prototype_rows(
     pair_metadata: dict[str, Any],
     indices: np.ndarray,
     scores: np.ndarray,
+    projection_scores_: np.ndarray,
 ) -> list[dict[str, Any]]:
-    metadata_lists = {key: _as_list(pair_metadata, key) for key in PAIR_METADATA_KEYS}
+    metadata_lists = _row_metadata_lists(pair_metadata, row_count=int(scores.shape[0]))
     rows = []
     for rank, idx in enumerate(np.asarray(indices, dtype=np.int64).tolist()):
         row = {
             "rank": int(rank),
             "index": int(idx),
             "score": float(scores[idx]),
+            "projection_score": float(projection_scores_[idx]),
         }
         for key, values in metadata_lists.items():
-            row[key] = _list_get(values, idx, "")
+            row[key] = _json_value(_list_get(values, idx, ""))
         rows.append(row)
     return rows
 
@@ -110,11 +118,13 @@ def dynamic_prototype_report(
     seed: int = 0,
     split_name: str = "train",
     direction_key: str = "direction",
+    reverse: bool = False,
 ) -> dict[str, Any]:
     """Build a prototype and random-control report for a dynamic concept."""
-    scores = projection_scores(differences, direction)
-    if scores.size == 0:
+    raw_scores = projection_scores(differences, direction)
+    if raw_scores.size == 0:
         raise ValueError("At least one pair row is required for prototype selection")
+    scores = -raw_scores if reverse else raw_scores
     top_indices = select_top_indices(scores, top_k=top_k, largest=True)
     random_indices = select_random_indices(
         num_rows=int(scores.shape[0]),
@@ -126,6 +136,7 @@ def dynamic_prototype_report(
         "method": "dynamic_prototype_selection",
         "split": split_name,
         "direction_key": direction_key,
+        "reverse": bool(reverse),
         "num_pairs": int(scores.shape[0]),
         "dimension": int(np.asarray(differences).shape[1]),
         "top_k": int(top_indices.shape[0]),
@@ -136,6 +147,11 @@ def dynamic_prototype_report(
             "min": float(np.min(scores)),
             "max": float(np.max(scores)),
         },
-        "prototypes": _prototype_rows(pair_metadata, top_indices, scores),
-        "random_controls": _prototype_rows(pair_metadata, random_indices, scores),
+        "projection_score_summary": {
+            "mean": float(np.mean(raw_scores)),
+            "min": float(np.min(raw_scores)),
+            "max": float(np.max(raw_scores)),
+        },
+        "prototypes": _prototype_rows(pair_metadata, top_indices, scores, raw_scores),
+        "random_controls": _prototype_rows(pair_metadata, random_indices, scores, raw_scores),
     }

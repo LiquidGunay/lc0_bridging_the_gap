@@ -152,6 +152,7 @@ def _prototype_lines(prototypes_report: dict[str, Any] | None) -> list[str]:
         "",
         f"- split: {prototypes_report.get('split', 'n/a')}",
         f"- direction key: {prototypes_report.get('direction_key', 'n/a')}",
+        f"- reverse: {prototypes_report.get('reverse', 'n/a')}",
         f"- selected prototypes: {len(prototypes)}",
         f"- random controls: {len(prototypes_report.get('random_controls', []))}",
         f"- max score: {_format_float(score_summary.get('max'))}",

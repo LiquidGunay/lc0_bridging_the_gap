@@ -1,6 +1,7 @@
 import json
 
 import numpy as np
+import pytest
 
 from lc0jax.interpretability.dynamic_prototypes import (
     dynamic_prototype_report,
@@ -25,6 +26,7 @@ def test_dynamic_prototype_report_selects_top_rows_and_random_controls():
         "root_fens": np.asarray(["root0", "root1", "root2", "root3"], dtype=object),
         "best_moves": np.asarray(["a", "b", "c", "d"], dtype=object),
         "subpar_moves": np.asarray(["aa", "bb", "cc", "dd"], dtype=object),
+        "source_ids": np.asarray([10, 11, 12, 13], dtype=np.int32),
     }
 
     scores = projection_scores(differences, direction)
@@ -49,20 +51,43 @@ def test_dynamic_prototype_report_selects_top_rows_and_random_controls():
     assert [row["index"] for row in report["prototypes"]] == [1, 3]
     assert report["prototypes"][0]["root_fens"] == "root1"
     assert report["prototypes"][0]["best_moves"] == "b"
+    assert report["prototypes"][0]["source_ids"] == 11
+    assert report["prototypes"][0]["projection_score"] == 3.0
     assert {row["index"] for row in report["random_controls"]}.isdisjoint({1, 3})
 
 
-def test_select_dynamic_prototypes_cli_writes_report(tmp_path, monkeypatch):
+def test_dynamic_prototype_report_supports_reversed_concepts():
+    report = dynamic_prototype_report(
+        np.asarray([[2.0], [-4.0], [1.0]], dtype=np.float32),
+        np.asarray([1.0], dtype=np.float32),
+        {"root_fens": np.asarray(["positive", "negative", "small"], dtype=object)},
+        top_k=1,
+        random_count=0,
+        reverse=True,
+    )
+
+    assert report["reverse"] is True
+    assert report["prototypes"][0]["index"] == 1
+    assert report["prototypes"][0]["score"] == 4.0
+    assert report["prototypes"][0]["projection_score"] == -4.0
+
+
+def test_select_dynamic_prototypes_cli_writes_report_and_auto_reverses(
+    tmp_path,
+    monkeypatch,
+):
     pairs = tmp_path / "pairs.train.npz"
     np.savez_compressed(
         pairs,
-        differences=np.asarray([[1.0, 0.0], [4.0, 0.0], [2.0, 0.0]], dtype=np.float32),
+        differences=np.asarray([[1.0, 0.0], [-4.0, 0.0], [2.0, 0.0]], dtype=np.float32),
         root_fens=np.asarray(["root0", "root1", "root2"], dtype=object),
         best_moves=np.asarray(["a", "b", "c"], dtype=object),
         subpar_moves=np.asarray(["aa", "bb", "cc"], dtype=object),
+        source_ids=np.asarray(["id0", "id1", "id2"], dtype=object),
     )
     concept = tmp_path / "concept"
     concept.mkdir()
+    (concept / "report.json").write_text(json.dumps({"reverse": True}), encoding="utf-8")
     np.savez_compressed(
         concept / "concept_direction.npz",
         direction=np.asarray([1.0, 0.0], dtype=np.float32),
@@ -93,5 +118,39 @@ def test_select_dynamic_prototypes_cli_writes_report(tmp_path, monkeypatch):
     assert report["pairs"] == str(pairs)
     assert report["concept"] == str(concept)
     assert report["split"] == "train"
-    assert [row["index"] for row in report["prototypes"]] == [1, 2]
-    assert report["random_controls"][0]["index"] == 0
+    assert report["reverse"] is True
+    assert [row["index"] for row in report["prototypes"]] == [1, 0]
+    assert report["prototypes"][0]["source_ids"] == "id1"
+    assert report["random_controls"][0]["index"] == 2
+
+
+def test_select_dynamic_prototypes_rejects_standardized_direction_key(
+    tmp_path,
+    monkeypatch,
+):
+    pairs = tmp_path / "pairs.train.npz"
+    np.savez_compressed(pairs, differences=np.asarray([[1.0]], dtype=np.float32))
+    concept = tmp_path / "concept"
+    concept.mkdir()
+    np.savez_compressed(
+        concept / "concept_direction.npz",
+        standardized_direction=np.asarray([1.0], dtype=np.float32),
+    )
+    out = tmp_path / "prototypes_report.json"
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "select_dynamic_prototypes.py",
+            "--pairs",
+            str(pairs),
+            "--concept",
+            str(concept),
+            "--out",
+            str(out),
+            "--direction-key",
+            "standardized_direction",
+        ],
+    )
+
+    with pytest.raises(SystemExit):
+        select_dynamic_prototypes.main()

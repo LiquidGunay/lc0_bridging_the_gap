@@ -265,6 +265,27 @@ def test_build_dynamic_concept_report_cli_accepts_explicit_evaluation_path(
         ),
         encoding="utf-8",
     )
+    explicit_prototypes = tmp_path / "explicit_prototypes.json"
+    explicit_prototypes.write_text(
+        json.dumps(
+            {
+                "split": "cli-train",
+                "direction_key": "direction",
+                "reverse": True,
+                "score_summary": {"max": 5.0, "mean": 2.5},
+                "prototypes": [
+                    {
+                        "index": 2,
+                        "score": 5.0,
+                        "best_moves": "g1f3",
+                        "subpar_moves": "b1c3",
+                    }
+                ],
+                "random_controls": [],
+            }
+        ),
+        encoding="utf-8",
+    )
     out = tmp_path / "report.md"
     monkeypatch.setattr(
         "sys.argv",
@@ -276,6 +297,8 @@ def test_build_dynamic_concept_report_cli_accepts_explicit_evaluation_path(
             str(concept_dir),
             "--evaluation",
             str(explicit_eval),
+            "--prototypes",
+            str(explicit_prototypes),
             "--out",
             str(out),
             "--top-n",
@@ -290,6 +313,8 @@ def test_build_dynamic_concept_report_cli_accepts_explicit_evaluation_path(
     assert f"- report pairs: `{pairs}`" in report
     assert "- split: cli-test" in report
     assert "- mean score: 4.000000" in report
+    assert "- reverse: True" in report
+    assert "- top prototype: index=2, score=5.000000, best=g1f3, subpar=b1c3" in report
 
 
 def test_build_dynamic_concept_report_handles_partial_pair_metadata(tmp_path):
