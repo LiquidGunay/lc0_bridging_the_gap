@@ -32,6 +32,7 @@ The goal is to accurately reproduce the concept discovery methodology from the S
 - [x] (2026-04-27) Re-ran the GCP dynamic smoke with history-aware trajectory records under `data/runs/gcp_dynamic_smoke_records_20260427`.
 - [x] (2026-04-27) Added dynamic concept markdown report cards from `pairs.npz`, solver reports, and novelty reports.
 - [x] (2026-04-27) Added dynamic random/shuffled baseline summaries for learned rollout concept directions.
+- [x] (2026-04-27) Added dynamic policy-margin patch reports for best-vs-subpar root moves.
 - [ ] Add teachability filtering and random-prototype baselines.
 
 ## Surprises & Discoveries
@@ -45,6 +46,8 @@ The goal is to accurately reproduce the concept discovery methodology from the S
   Evidence: `gcp_dynamic_smoke_20260427` kept 1 rollout pair, dumped 6 flat trajectory activations, solved a `(1, 65536)` sparse concept with status `optimal`, and produced a novelty curve with `positive_rank_fraction=0.0` against a 10-position human reference.
 - Observation: Dynamic trajectory activations must be dumped from records rather than unique FEN lists for BT4 112-plane inputs.
   Evidence: PV continuations encode differently when rolling history is present. `tools/build_mcts_pairs.py --out-trajectory-records` now writes history-aware records with `activation_keys`, `tools/materialize_mcts_pairs.py` uses those keys instead of collapsing repeated FENs, and `gcp_dynamic_smoke_records_20260427` validated the corrected path with LC0.
+- Observation: The first policy-margin smoke validates patch/report plumbing, not concept effect size.
+  Evidence: `tools/dynamic_policy_margin.py` ran on `gcp_dynamic_smoke_records_20260427` with one pair and `alpha=0.1`, wrote `policy_margin_report.json`, and produced `mean_delta_margin=0.0`.
 
 ## Decision Log
 
@@ -74,10 +77,11 @@ The goal is to accurately reproduce the concept discovery methodology from the S
 - Validated the corrected dynamic path on GCP with the history-aware smoke run `data/runs/gcp_dynamic_smoke_records_20260427`.
 - Added dynamic report-card generation for root FENs, best/subpar moves, PVs, scores, solver stats, pair materialization metadata, and novelty summaries.
 - Added random sparse, shuffled-label, and optional shuffled-solve baselines for dynamic concept runs.
+- Added policy-margin patch reports for dynamic concepts, including support for flat `[64 * channels]` directions at token-shaped patch points.
 
 **Next Steps:**
 1. Scale MCTS pair extraction and flat activation dumps on GCP with larger root sets, higher node budgets, and sharded resume support.
-2. Add dynamic report cards with best/subpar PVs, constraint satisfaction, novelty curves, causal policy-margin effects, and shuffled/random baselines.
+2. Scale dynamic runs with held-out root splits and include report cards, baselines, novelty, and policy-margin patching.
 3. Add teachability filtering with a weaker LC0 checkpoint or student network.
 
 ## Context and Orientation
@@ -131,6 +135,7 @@ Dynamic sparse solver example once `pairs.npz` exists:
     python tools/materialize_mcts_pairs.py --pairs-jsonl data/runs/<RUN_ID>/mcts_pairs/pairs.jsonl --activations data/runs/<RUN_ID>/activations/trajectory_flat --out data/runs/<RUN_ID>/mcts_pairs/pairs.npz --mode flat
     python tools/solve_dynamic_concepts.py --pairs data/runs/<RUN_ID>/mcts_pairs/pairs.npz --out data/runs/<RUN_ID>/concepts/dynamic_sparse --mode flat
     python tools/dynamic_concept_baselines.py --pairs data/runs/<RUN_ID>/mcts_pairs/pairs.npz --concept data/runs/<RUN_ID>/concepts/dynamic_sparse --out data/runs/<RUN_ID>/concepts/dynamic_sparse/baselines_report.json
+    python tools/dynamic_policy_margin.py --pairs data/runs/<RUN_ID>/mcts_pairs/pairs.npz --concept data/runs/<RUN_ID>/concepts/dynamic_sparse --pb models/BT4-1024x15x32h-swa-6147500-policytune-332.pb.gz --out data/runs/<RUN_ID>/concepts/dynamic_sparse/policy_margin_report.json
     python tools/build_dynamic_concept_report.py --pairs data/runs/<RUN_ID>/mcts_pairs/pairs.npz --concept data/runs/<RUN_ID>/concepts/dynamic_sparse --out data/runs/<RUN_ID>/concepts/dynamic_sparse/report.md
 
 Novelty filter example:

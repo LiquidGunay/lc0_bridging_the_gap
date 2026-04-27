@@ -85,6 +85,21 @@ def test_build_dynamic_concept_report_includes_solver_novelty_and_pairs(tmp_path
         ),
         encoding="utf-8",
     )
+    (concept_dir / "policy_margin_report.json").write_text(
+        json.dumps(
+            {
+                "num_pairs": 1,
+                "layer": "trunk",
+                "alpha": 1.0,
+                "mean_base_margin": 0.5,
+                "mean_patched_margin": 0.75,
+                "mean_delta_margin": 0.25,
+                "fraction_delta_positive": 1.0,
+                "top1_change_rate": 0.0,
+            }
+        ),
+        encoding="utf-8",
+    )
 
     report = build_dynamic_concept_report(
         pairs_path=pairs,
@@ -99,6 +114,8 @@ def test_build_dynamic_concept_report_includes_solver_novelty_and_pairs(tmp_path
     assert "- vector 0: novelty_area=0.125000" in report
     assert "- actual constraint satisfaction: 1.000000" in report
     assert "- random sparse constraint satisfaction mean: 0.250000" in report
+    assert "- mean delta margin: 0.250000" in report
+    assert "- top1 change rate: 0.000000" in report
     assert "| 0 | e2e4 (50) | d2d4 (10) | 40 | e2e4 e7e5 | d2d4 d7d5 | root fen |" in report
 
 
