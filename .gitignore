@@ -19,3 +19,14 @@ lc0jax.egg-info/
 /data/**/*.tgz
 /data/**/*.zst
 /data/**/*.gz
+chess-dfm-jax/
+
+# Local experiment artifacts
+lc0jax-human/.env
+lc0jax-human/node_modules/
+lc0jax-human/models/
+lc0jax-human/*.log
+lc0jax-human/.agents/
+lc0jax-human/notebooks/__marimo__/
+lc0jax-human/runs/
+lc0jax-human/wandb/

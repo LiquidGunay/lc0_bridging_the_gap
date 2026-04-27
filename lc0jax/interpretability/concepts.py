@@ -47,6 +47,37 @@ def discover_concepts(
     elif method == "cluster_diff":
         vecs, scores = _cluster_diff_directions(emb_a, emb_b, k=k)
         vec = vecs
+    elif method == "svm_cvxpy":
+        import cvxpy as cp
+
+        # Subsample to keep cvxpy fast, random pairing
+        n_samples = min(len(emb_a), len(emb_b), 2000)
+        rng = np.random.default_rng(42)
+        idx_a = rng.choice(len(emb_a), n_samples, replace=False)
+        idx_b = rng.choice(len(emb_b), n_samples, replace=False)
+
+        X_pos = emb_a[idx_a]
+        X_neg = emb_b[idx_b]
+
+        d = X_pos.shape[1]
+        v = cp.Variable(d)
+        xi = cp.Variable(n_samples)
+
+        # L1 penalized SVM with soft-margin to avoid infeasibility
+        C = 1.0
+        objective = cp.Minimize(cp.norm1(v) + C * cp.sum(xi))
+        constraints = [
+            (X_pos - X_neg) @ v >= 1 - xi,
+            xi >= 0
+        ]
+
+        prob = cp.Problem(objective, constraints)
+        prob.solve(solver=cp.SCS)
+
+        if v.value is None:
+            raise RuntimeError("cvxpy could not find a solution for svm_cvxpy")
+
+        vec = v.value
     else:
         raise ValueError(f"Unsupported method: {method}")
 

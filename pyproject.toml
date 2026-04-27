@@ -31,6 +31,7 @@ dependencies = [
   "pandas",
   "zstandard",
   "scikit-learn",
+  "cvxpy",
 ]
 
 [project.optional-dependencies]

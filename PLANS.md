@@ -13,6 +13,9 @@ The goal is to build an open-source, reproducible pipeline that can load a real 
 ## Progress
 
 
+- [x] (2026-04-14 09:20Z) Added token-level JEPA training in `lc0jax-human` with one BT4 token per square, an action-conditioned transformer head, and Orbax async checkpoint/resume support.
+- [x] (2026-04-14 09:20Z) Added a local Spot TPU controller scaffold plus startup-script generation for single-host `v5litepod-8` queued-resource jobs with regional GCS checkpoints.
+- [x] (2026-04-14 14:35Z) Added a TPU profiling bundle entrypoint plus a profile-only Spot TPU job spec for arithmetic-intensity sweeps, TensorBoard-compatible traces, and device metadata capture.
 - [x] (2026-01-29 00:00Z) Created initial ExecPlan in `PLANS.md` with target BT4 network, simplified repo structure, and Schut-style concept workflow.
 - [x] (2026-01-29 18:15Z) Bootstrap repo structure, dependencies, and model artifact download script (completed: repo skeleton, tool stubs, `tools/download_model.py`, created `.venv` via `uv`, installed core deps, built LC0 v0.32.1 from source, exported ONNX).
 - [x] (2026-01-29 18:15Z) Implement ONNX oracle conversion + runner with a deterministic FEN test set (completed: built LC0 v0.32.1, exported ONNX via `lc0 leela2onnx`, ran oracle on `data/fens.txt` with encoder, confirmed input/output shapes).
@@ -54,6 +57,10 @@ The goal is to build an open-source, reproducible pipeline that can load a real 
 ## Surprises & Discoveries
 
 
+- Observation: The chunk loader’s sample-level shuffle path can scramble reconstructed boards and decoded moves, producing all-invalid JEPA transition batches; the non-shuffled path remains valid.
+  Evidence: `build_transition_batch` on `LeelaChunkDataLoader(..., shuffle_buffer=32)` yielded `valid=[0, ...]`, while `shuffle_buffer=0` on the same chunk set yielded `valid.mean()=0.875`.
+- Observation: Orbax async checkpoints behave correctly for single-writer resume flows, but concurrent writers to the same checkpoint directory race on the finalized step path.
+  Evidence: Two simultaneous `scripts/train_jepa.py` processes targeting the same checkpoint directory raised `FileExistsError` on `step_0000001`.
 - Observation: The system Python lacks `venv`/`pip` support (no `python3-venv` package), and `sudo` is unavailable. Creating a local venv or installing pip failed, which blocks generating protobuf bindings via `protoc` or `grpcio-tools` without another workaround.
   Evidence: `python3 -m venv .venv` reports that `ensurepip` is unavailable and suggests installing `python3.12-venv`; `sudo apt-get` is unavailable without a password.
 - Observation: `uv` is available and can create a local venv and install packages, which unblocked `grpcio-tools` and protobuf generation.
@@ -93,6 +100,18 @@ The goal is to build an open-source, reproducible pipeline that can load a real 
 ## Decision Log
 
 
+- Decision: The JEPA baseline in `lc0jax-human` uses frozen BT4 square tokens plus a small action-conditioned transformer instead of the earlier pooled MLP head.
+  Rationale: The user explicitly requested one token per square and a transformer that remains easy to ablate and modify.
+  Date/Author: 2026-04-14 / Codex
+- Decision: Use Orbax async checkpoints and resume by checkpoint directory rather than pickle files.
+  Rationale: Spot TPU jobs need preemption-safe checkpointing to local or GCS paths, and Orbax is the JAX-native path for that workflow.
+  Date/Author: 2026-04-14 / Codex
+- Decision: Keep the first cloud path single-host on Spot `v5e-8` and drive retries from a local controller loop with ordered zone fallback.
+  Rationale: The user confirmed single-host is the whole-project target, and this keeps the first TPU-safe implementation much simpler than multi-host slices.
+  Date/Author: 2026-04-14 / Codex
+- Decision: Disable sample-level chunk shuffling for JEPA training until the board/move alignment bug in the loader is fixed.
+  Rationale: Training on all-invalid batches is worse than reduced shuffle entropy; file-level shuffling still provides enough variation for the current scaffold.
+  Date/Author: 2026-04-14 / Codex
 - Decision: Target the specific network `BT4-1024x15x32h-swa-6147500-policytune-332.pb.gz` and make it the only required net for the first implementation.
   Rationale: This aligns with the user's request and ensures the oracle and Flax parity work is tightly scoped.
   Date/Author: 2026-01-29 / Codex
@@ -211,7 +230,7 @@ The goal is to build an open-source, reproducible pipeline that can load a real 
 ## Outcomes & Retrospective
 
 
-- Not started yet. This section will be updated after the first milestone completes.
+- Update (2026-04-14): `lc0jax-human` now has a usable frozen-BT4 token JEPA path with local GPU smoke tests, Orbax save/resume, and a first-pass Spot TPU controller. The remaining gap is a more robust cloud validation pass once `gcloud`/ADC and the GCP resources are provisioned on the user side.
 
 ## Context and Orientation
 

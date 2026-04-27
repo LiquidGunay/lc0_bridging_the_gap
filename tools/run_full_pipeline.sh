@@ -58,6 +58,16 @@ FILTER_PROGRESS_EVERY="${FILTER_PROGRESS_EVERY:-}"
 FILTER_HUMAN_OUT_FENS="${FILTER_HUMAN_OUT_FENS:-${BASE_DIR}/lichess/broadcasts_2400_classical.filtered.fens}"
 FILTER_LC0_OUT_FENS="${FILTER_LC0_OUT_FENS:-${BASE_DIR}/lc0-training/lc0_100k.filtered.fens}"
 
+# Optional Eval filtering (disabled by default).
+EVAL_FILTER="${EVAL_FILTER:-0}"
+EVAL_LC0_BIN="${EVAL_LC0_BIN:-/tmp/lc0-src/build/release/lc0}"
+EVAL_WEIGHTS="${EVAL_WEIGHTS:-$PB_FILE}"
+EVAL_OUT_FENS="${EVAL_OUT_FENS:-${BASE_DIR}/lichess/broadcasts_2400_classical.eval.fens}"
+EVAL_MIN_CP="${EVAL_MIN_CP:--150}"
+EVAL_MAX_CP="${EVAL_MAX_CP:-150}"
+EVAL_NODES="${EVAL_NODES:-800}"
+EVAL_PROGRESS_EVERY="${EVAL_PROGRESS_EVERY:-100}"
+
 # Optional policy-disagreement filtering (disabled by default).
 DISAGREE_FILTER="${DISAGREE_FILTER:-0}"
 DISAGREE_LC0_BIN="${DISAGREE_LC0_BIN:-/tmp/lc0-src/build/release/lc0}"
@@ -252,6 +262,23 @@ if [ "$FILTER_LC0" -eq 1 ]; then
   LC0_FENS_FOR_ACT="$FILTER_LC0_OUT_FENS"
 fi
 
+if [ "$EVAL_FILTER" -eq 1 ]; then
+  if should_skip_file "$EVAL_OUT_FENS"; then
+    echo "[$(timestamp)] skipping eval filter (existing $EVAL_OUT_FENS)"
+  else
+    if [ ! -x "$EVAL_LC0_BIN" ]; then
+      echo "Missing LC0 binary at $EVAL_LC0_BIN (set EVAL_LC0_BIN)." >&2
+      exit 1
+    fi
+    EVAL_ARGS=(--fens "$HUMAN_FENS_FOR_ACT" --out "$EVAL_OUT_FENS" --lc0 "$EVAL_LC0_BIN")
+    EVAL_ARGS+=(--weights "$EVAL_WEIGHTS" --nodes "$EVAL_NODES" --progress-every "$EVAL_PROGRESS_EVERY")
+    if [ -n "$EVAL_MIN_CP" ]; then EVAL_ARGS+=(--min-cp "$EVAL_MIN_CP"); fi
+    if [ -n "$EVAL_MAX_CP" ]; then EVAL_ARGS+=(--max-cp "$EVAL_MAX_CP"); fi
+    run_fg "$PYTHON_BIN" tools/filter_fens_eval.py "${EVAL_ARGS[@]}"
+  fi
+  HUMAN_FENS_FOR_ACT="$EVAL_OUT_FENS"
+fi
+
 if [ "$DISAGREE_FILTER" -eq 1 ]; then
   if should_skip_file "$DISAGREE_OUT_FENS"; then
     echo "[$(timestamp)] skipping disagreement filter (existing $DISAGREE_OUT_FENS)"
@@ -309,6 +336,28 @@ else
 fi
 
 # Concept discovery + causal validation.
+if should_skip_file "$BASE_DIR/concepts/full_svm_cvxpy/report.json"; then
+  echo "[$(timestamp)] skipping svm_cvxpy concepts"
+else
+  run_fg "$PYTHON_BIN" tools/discover_concepts.py \
+    --embeddings-a "$LC0_ACT_OUT" \
+    --embeddings-b "$HUMAN_ACT_OUT" \
+    --out "$BASE_DIR/concepts/full_svm_cvxpy" \
+    --method svm_cvxpy \
+    --max-samples "$CONCEPT_MAX_SAMPLES" \
+    --patch --pb "$PB_FILE"
+fi
+
+if should_skip_file "$BASE_DIR/concepts/full_svm_cvxpy/causal_report.json"; then
+  echo "[$(timestamp)] skipping svm_cvxpy causal validation"
+else
+  run_fg "$PYTHON_BIN" tools/causal_validate.py \
+    --concept "$BASE_DIR/concepts/full_svm_cvxpy" \
+    --embeddings "$HUMAN_ACT_OUT" \
+    --pb "$PB_FILE" \
+    --max-samples "$CAUSAL_MAX_SAMPLES"
+fi
+
 if should_skip_file "$BASE_DIR/concepts/full_mean_diff/report.json"; then
   echo "[$(timestamp)] skipping mean_diff concepts"
 else
