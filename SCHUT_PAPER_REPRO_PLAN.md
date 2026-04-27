@@ -79,7 +79,7 @@ The goal is to accurately reproduce the concept discovery methodology from the S
 - Added dynamic report-card generation for root FENs, best/subpar moves, PVs, scores, solver stats, pair materialization metadata, and novelty summaries.
 - Added random sparse, shuffled-label, and optional shuffled-solve baselines for dynamic concept runs.
 - Added policy-margin patch reports for dynamic concepts, including support for flat `[64 * channels]` directions at token-shaped patch points.
-- Added root-position grouped train/test splitting for dynamic rollout pairs, so constraint satisfaction, baselines, and policy-margin checks can run on held-out roots.
+- Added root-position grouped train/test splitting for dynamic rollout pairs, ignoring FEN fullmove counters so constraint satisfaction, baselines, and policy-margin checks can run on held-out positions.
 
 **Next Steps:**
 1. Scale MCTS pair extraction and flat activation dumps on GCP with larger root sets, higher node budgets, and sharded resume support.

@@ -46,6 +46,7 @@ def _with_split_metadata(
     test_fraction: float,
     seed: int,
     summary: dict[str, int],
+    extra_row_aligned_keys: set[str],
 ) -> dict[str, np.ndarray]:
     out = dict(payload)
     metadata = _decode_metadata(payload.get("metadata"))
@@ -57,9 +58,10 @@ def _with_split_metadata(
     metadata["split"] = {
         "name": split_name,
         "source_pairs": str(source_pairs),
-        "group_key": "root_fens",
+        "group_key": "root_fens_without_fullmove",
         "test_fraction": float(test_fraction),
         "seed": int(seed),
+        "extra_row_aligned_keys": sorted(extra_row_aligned_keys),
         **summary,
     }
     out["metadata"] = np.asarray(json.dumps(metadata, indent=2), dtype=object)
@@ -78,6 +80,12 @@ def main() -> int:
     parser.add_argument("--out-test", required=True, help="Output held-out test pairs.npz file.")
     parser.add_argument("--test-fraction", type=float, default=0.2)
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument(
+        "--row-aligned-key",
+        action="append",
+        default=[],
+        help="Additional payload key to subset row-wise; may be repeated.",
+    )
     args = parser.parse_args()
 
     pairs_path = Path(args.pairs)
@@ -97,8 +105,19 @@ def main() -> int:
         seed=args.seed,
     )
     summary = root_split_summary(root_fens, train_indices, test_indices)
-    train_payload = subset_pairs_payload(payload, train_indices, row_count=row_count)
-    test_payload = subset_pairs_payload(payload, test_indices, row_count=row_count)
+    extra_row_keys = set(args.row_aligned_key)
+    train_payload = subset_pairs_payload(
+        payload,
+        train_indices,
+        row_count=row_count,
+        row_aligned_keys=None if not extra_row_keys else extra_row_keys,
+    )
+    test_payload = subset_pairs_payload(
+        payload,
+        test_indices,
+        row_count=row_count,
+        row_aligned_keys=None if not extra_row_keys else extra_row_keys,
+    )
     train_payload = _with_split_metadata(
         train_payload,
         split_name="train",
@@ -106,6 +125,7 @@ def main() -> int:
         test_fraction=args.test_fraction,
         seed=args.seed,
         summary=summary,
+        extra_row_aligned_keys=extra_row_keys,
     )
     test_payload = _with_split_metadata(
         test_payload,
@@ -114,6 +134,7 @@ def main() -> int:
         test_fraction=args.test_fraction,
         seed=args.seed,
         summary=summary,
+        extra_row_aligned_keys=extra_row_keys,
     )
 
     _write_npz(Path(args.out_train), train_payload)

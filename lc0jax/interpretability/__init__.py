@@ -28,6 +28,7 @@ from .dynamic_causal import policy_margin_report
 from .dynamic_reports import build_dynamic_concept_report
 from .dynamic_splits import (
     infer_pair_row_count,
+    root_fen_group_key,
     root_split_summary,
     split_pair_indices,
     subset_pairs_payload,
@@ -71,6 +72,7 @@ __all__ = [
     "policy_margin_report",
     "build_dynamic_concept_report",
     "infer_pair_row_count",
+    "root_fen_group_key",
     "root_split_summary",
     "split_pair_indices",
     "subset_pairs_payload",

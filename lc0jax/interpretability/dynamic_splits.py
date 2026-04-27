@@ -8,6 +8,36 @@ from typing import Any
 import numpy as np
 
 
+DEFAULT_ROW_ALIGNED_KEYS = frozenset(
+    {
+        "differences",
+        "optimal_rollouts",
+        "subpar_rollouts",
+        "root_fens",
+        "best_moves",
+        "subpar_moves",
+        "best_score_cp",
+        "subpar_score_cp",
+        "best_pv",
+        "subpar_pv",
+    }
+)
+
+
+def root_fen_group_key(root_fen: str) -> str:
+    """Return the dynamic split group key for a root FEN.
+
+    Standard FEN strings end with halfmove and fullmove counters. The fullmove
+    number is not part of the LC0 model input or legal move state, so it should
+    not create a separate held-out group.
+    """
+    text = str(root_fen)
+    fields = text.split()
+    if len(fields) >= 6:
+        return " ".join(fields[:5])
+    return text
+
+
 def split_pair_indices(
     root_fens: list[str] | np.ndarray,
     *,
@@ -22,22 +52,25 @@ def split_pair_indices(
     if not 0.0 < test_fraction < 1.0:
         raise ValueError("test_fraction must be between 0 and 1")
 
-    roots = [str(item) for item in np.asarray(root_fens, dtype=object).reshape(-1)]
-    if not roots:
+    group_keys = [
+        root_fen_group_key(str(item))
+        for item in np.asarray(root_fens, dtype=object).reshape(-1)
+    ]
+    if not group_keys:
         raise ValueError("At least one root FEN is required")
 
-    unique_roots = list(dict.fromkeys(roots))
-    if len(unique_roots) < 2:
+    unique_groups = list(dict.fromkeys(group_keys))
+    if len(unique_groups) < 2:
         raise ValueError("At least two unique root FENs are required for a held-out split")
 
     rng = np.random.default_rng(seed)
-    permuted = rng.permutation(len(unique_roots))
-    test_root_count = int(round(len(unique_roots) * test_fraction))
-    test_root_count = min(max(1, test_root_count), len(unique_roots) - 1)
-    test_roots = {unique_roots[int(idx)] for idx in permuted[:test_root_count]}
+    permuted = rng.permutation(len(unique_groups))
+    test_root_count = int(round(len(unique_groups) * test_fraction))
+    test_root_count = min(max(1, test_root_count), len(unique_groups) - 1)
+    test_roots = {unique_groups[int(idx)] for idx in permuted[:test_root_count]}
 
-    train_indices = [idx for idx, root in enumerate(roots) if root not in test_roots]
-    test_indices = [idx for idx, root in enumerate(roots) if root in test_roots]
+    train_indices = [idx for idx, group in enumerate(group_keys) if group not in test_roots]
+    test_indices = [idx for idx, group in enumerate(group_keys) if group in test_roots]
     if not train_indices or not test_indices:
         raise RuntimeError("Split produced an empty train or test set")
     return (
@@ -66,6 +99,7 @@ def subset_pairs_payload(
     *,
     row_count: int | None = None,
     row_key: str = "differences",
+    row_aligned_keys: set[str] | frozenset[str] | None = None,
 ) -> dict[str, np.ndarray]:
     """Subset row-aligned arrays while preserving scalar and non-row metadata."""
     if row_count is None:
@@ -77,10 +111,14 @@ def subset_pairs_payload(
     if selected.size and (np.min(selected) < 0 or np.max(selected) >= row_count):
         raise IndexError("subset index out of bounds")
 
+    aligned_keys = set(DEFAULT_ROW_ALIGNED_KEYS)
+    if row_aligned_keys is not None:
+        aligned_keys.update(row_aligned_keys)
+    aligned_keys.add(row_key)
     subset: dict[str, np.ndarray] = {}
     for key, value in payload.items():
         array = np.asarray(value)
-        if array.ndim > 0 and array.shape[0] == row_count:
+        if key in aligned_keys and array.ndim > 0 and array.shape[0] == row_count:
             subset[key] = array[selected]
         else:
             subset[key] = array
@@ -96,11 +134,12 @@ def root_split_summary(
     roots = np.asarray(root_fens, dtype=object).reshape(-1)
     train = np.asarray(train_indices, dtype=np.int64).reshape(-1)
     test = np.asarray(test_indices, dtype=np.int64).reshape(-1)
+    groups = [root_fen_group_key(str(root)) for root in roots.tolist()]
     return {
         "num_rows": int(roots.shape[0]),
         "num_train_rows": int(train.shape[0]),
         "num_test_rows": int(test.shape[0]),
-        "num_root_groups": int(len(set(str(root) for root in roots.tolist()))),
-        "num_train_root_groups": int(len(set(str(roots[idx]) for idx in train.tolist()))),
-        "num_test_root_groups": int(len(set(str(roots[idx]) for idx in test.tolist()))),
+        "num_root_groups": int(len(set(groups))),
+        "num_train_root_groups": int(len(set(groups[idx] for idx in train.tolist()))),
+        "num_test_root_groups": int(len(set(groups[idx] for idx in test.tolist()))),
     }
