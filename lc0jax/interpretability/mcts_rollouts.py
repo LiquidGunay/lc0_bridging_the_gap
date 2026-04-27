@@ -21,6 +21,7 @@ class RolloutLine:
     nodes: int | None
     pv: list[str]
     fens: list[str]
+    activation_keys: list[str] | None = None
 
     def to_json(self) -> dict:
         return asdict(self)
@@ -62,6 +63,37 @@ def pv_to_fens(
         board.push(move)
         fens.append(board.fen())
     return fens
+
+
+def activation_records_for_line(
+    line: RolloutLine,
+    *,
+    line_id: str,
+    history_len: int = 8,
+) -> list[dict]:
+    """Return activation records for a rollout line and attach stable keys."""
+    if chess is None:
+        raise ImportError("python-chess is required for MCTS rollout extraction.")
+    if history_len < 1:
+        raise ValueError("history_len must be >= 1")
+    keys = []
+    records = []
+    root_ply = chess.Board(line.fens[0]).ply() if line.fens else 0
+    for idx, fen in enumerate(line.fens):
+        key = f"{line_id}:{idx:03d}"
+        keys.append(key)
+        records.append(
+            {
+                "fen": fen,
+                "history_fens": line.fens[max(0, idx - history_len + 1) : idx + 1],
+                "game_id": line_id,
+                "ply": root_ply + idx,
+                "activation_key": key,
+                "trajectory_index": idx,
+            }
+        )
+    line.activation_keys = keys
+    return records
 
 
 def score_cp_from_info(info: dict, *, turn: "chess.Color") -> int | None:

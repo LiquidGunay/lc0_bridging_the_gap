@@ -58,7 +58,7 @@ def main() -> int:
         "mode": args.mode,
         "index_mode": args.index_mode,
         "max_records": args.max_records,
-        "num_activation_fens": len(activation_index),
+        "num_activation_items": len(activation_index),
         "num_differences": int(payload["differences"].shape[0]),
         "dimension": int(payload["differences"].shape[1]),
         "records_consumed": int(payload["records_consumed"]),

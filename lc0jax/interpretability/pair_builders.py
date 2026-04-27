@@ -25,10 +25,12 @@ def load_activation_index(
     *,
     activation_key: str = "auto",
 ) -> tuple[dict[str, np.ndarray], str]:
-    """Load activation shards into a FEN-to-activation index.
+    """Load activation shards into a trajectory-key or FEN-to-activation index.
 
     ``activation_key="auto"`` prefers raw ``token_activations`` when present and
-    falls back to ``embeddings`` for older shards.
+    falls back to ``embeddings`` for older shards. Shards with non-empty
+    ``activation_keys`` are indexed by those stable keys; older shards are
+    indexed by FEN for backwards compatibility.
     """
     root = Path(path)
     files = [root] if root.is_file() else sorted(root.glob("*.npz"))
@@ -54,13 +56,25 @@ def load_activation_index(
                 f"Activation key changed across shards: {chosen_key} then {key}"
             )
         activations = data[key]
-        fens = data["fens"].tolist()
+        fens = [str(fen) for fen in data["fens"].tolist()]
         if len(fens) != activations.shape[0]:
             raise ValueError(
                 f"Shard {file} has {len(fens)} FENs but {activations.shape[0]} activations"
             )
-        for fen, activation in zip(fens, activations):
-            index.setdefault(str(fen), np.asarray(activation))
+        activation_keys = []
+        if "activation_keys" in data:
+            activation_keys = [str(item) for item in data["activation_keys"].tolist()]
+            if len(activation_keys) != activations.shape[0]:
+                raise ValueError(
+                    f"Shard {file} has {len(activation_keys)} activation keys "
+                    f"but {activations.shape[0]} activations"
+                )
+        use_activation_keys = bool(activation_keys) and any(activation_keys)
+        index_keys = activation_keys if use_activation_keys else fens
+        for index_key, activation in zip(index_keys, activations):
+            if not index_key:
+                continue
+            index.setdefault(index_key, np.asarray(activation))
 
     if chosen_key is None:
         raise RuntimeError(f"No activations loaded from {root}")
@@ -68,14 +82,22 @@ def load_activation_index(
 
 
 def trajectory_activations(
-    fens: list[str],
+    trajectory_keys: list[str],
     activation_index: dict[str, np.ndarray],
 ) -> np.ndarray:
-    """Return activations for all FENs in one rollout trajectory."""
-    missing = [fen for fen in fens if fen not in activation_index]
+    """Return activations for all keys in one rollout trajectory."""
+    missing = [key for key in trajectory_keys if key not in activation_index]
     if missing:
-        raise KeyError(f"Missing activations for {len(missing)} trajectory FENs")
-    return np.asarray([activation_index[fen] for fen in fens])
+        raise KeyError(f"Missing activations for {len(missing)} trajectory positions")
+    return np.asarray([activation_index[key] for key in trajectory_keys])
+
+
+def trajectory_keys_for_line(line: dict) -> list[str]:
+    """Return activation keys for a rollout line, falling back to FENs."""
+    keys = [str(key) for key in line.get("activation_keys", []) if str(key)]
+    if keys:
+        return keys
+    return [str(fen) for fen in line["fens"]]
 
 
 def materialize_rollout_differences(
@@ -104,7 +126,10 @@ def materialize_rollout_differences(
         consumed += 1
         try:
             best_line = record["best"]
-            best_activation = trajectory_activations(best_line["fens"], activation_index)
+            best_activation = trajectory_activations(
+                trajectory_keys_for_line(best_line),
+                activation_index,
+            )
             best_vector = aggregate_trajectory(
                 best_activation,
                 mode=mode,
@@ -117,7 +142,7 @@ def materialize_rollout_differences(
         for subpar_line in record.get("subpar", []):
             try:
                 subpar_activation = trajectory_activations(
-                    subpar_line["fens"],
+                    trajectory_keys_for_line(subpar_line),
                     activation_index,
                 )
                 subpar_vector = aggregate_trajectory(

@@ -53,6 +53,8 @@ Record the LC0 version used for ONNX export and the BT4 model checksum (see `AGE
   - `python tools/discover_concepts.py --embeddings-a data/activations/lc0 --embeddings-b data/activations/human_2000_rapid_classical --out data/concepts/cov_shift_2000 --method cov_shift --k 8 --max-samples 1000`
   - `python tools/discover_concepts.py --embeddings-a data/activations/lc0 --embeddings-b data/activations/human_2000_rapid_classical --out data/concepts/cluster_diff_2000 --method cluster_diff --k 8 --max-samples 1000`
 - Dynamic sparse concepts from precomputed rollout pairs:
+  - Prefer trajectory records for LC0 112-plane inputs so PV continuations keep rolling history:
+    `python tools/dump_activations.py --pb models/BT4-1024x15x32h-swa-6147500-policytune-332.pb.gz --records data/runs/<RUN_ID>/mcts_pairs/trajectory.records.jsonl --out data/runs/<RUN_ID>/activations/trajectory_flat --activation-mode flat --store-token-activations`
   - `python tools/materialize_mcts_pairs.py --pairs-jsonl data/runs/<RUN_ID>/mcts_pairs/pairs.jsonl --activations data/runs/<RUN_ID>/activations/trajectory_flat --out data/runs/<RUN_ID>/mcts_pairs/pairs.npz --mode flat`
   - `python tools/solve_dynamic_concepts.py --pairs data/runs/<RUN_ID>/mcts_pairs/pairs.npz --out data/runs/<RUN_ID>/concepts/dynamic_sparse --mode flat`
 - Novelty filtering:
@@ -107,7 +109,7 @@ Phase is normalized to `[0, 1]` with `1.0` = opening and `0.0` = pure endgame.
   - For parallel runs: `--shard-count 4 --shard-index 0` (run 0..3 in separate shells and merge outputs).
   - To resume manually: re-run with `--start-line N` and `--append`, optionally `--state-file` to track progress.
 - LC0 MCTS rollout-pair metadata for dynamic concepts:
-  - `python tools/build_mcts_pairs.py --fens data/lichess/broadcasts.filtered.fens --out-jsonl data/runs/<RUN_ID>/mcts_pairs/pairs.jsonl --out-trajectory-fens data/runs/<RUN_ID>/mcts_pairs/trajectory.fens --lc0 /tmp/lc0-src/build/release/lc0 --weights models/BT4-1024x15x32h-swa-6147500-policytune-332.pb.gz --nodes 800 --multipv 4 --max-pairs 100`
+  - `python tools/build_mcts_pairs.py --fens data/lichess/broadcasts.filtered.fens --out-jsonl data/runs/<RUN_ID>/mcts_pairs/pairs.jsonl --out-trajectory-records data/runs/<RUN_ID>/mcts_pairs/trajectory.records.jsonl --out-trajectory-fens data/runs/<RUN_ID>/mcts_pairs/trajectory.fens --lc0 /tmp/lc0-src/build/release/lc0 --weights models/BT4-1024x15x32h-swa-6147500-policytune-332.pb.gz --nodes 800 --multipv 4 --max-pairs 100`
 
 ## Data sources
 

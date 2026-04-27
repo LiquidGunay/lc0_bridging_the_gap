@@ -25,10 +25,11 @@ The goal is to accurately reproduce the concept discovery methodology from the S
 - [x] (2026-04-27) Re-audited the repo against the dynamic Schut method in `REPO_AUDIT_AND_NEXT_STEPS.md` and corrected the implementation status in `IMPLEMENTATION_STATUS_AND_NEXT_WORK.md`.
 - [x] (2026-04-27) Added square-aware activation projection, optional raw token storage, sparse paired-difference solving, stored-rollout dynamic difference aggregation, and SVD novelty filtering.
 - [x] (2026-04-27) Added metadata-first LC0 MultiPV rollout-pair extraction with optimal/subpar PV states, scores, node metadata, and trajectory FEN export.
-- [x] (2026-04-27) Added `tools/materialize_mcts_pairs.py` to join trajectory activation shards back to rollout-pair JSONL and write solver-ready `pairs.npz`.
+- [x] (2026-04-27) Added `tools/materialize_mcts_pairs.py` to join trajectory activation shards back to rollout-pair JSONL and write solver-ready `pairs.npz`, using stable activation keys when available.
 - [x] (2026-04-27) Added history-aware PGN activation records and `dump_activations.py --records`.
 - [x] (2026-04-27) Updated `tools/run_full_pipeline.sh` to use history-aware human activation records by default when broadcast PGNs are available.
 - [x] (2026-04-27) Ran the first small GCP dynamic-concept smoke pipeline from LC0 MultiPV pairs through flat activation dump, `pairs.npz` materialization, sparse solve, and novelty report under `data/runs/gcp_dynamic_smoke_20260427`.
+- [x] (2026-04-27) Re-ran the GCP dynamic smoke with history-aware trajectory records under `data/runs/gcp_dynamic_smoke_records_20260427`.
 - [ ] Add teachability filtering and random-prototype baselines.
 
 ## Surprises & Discoveries
@@ -40,6 +41,8 @@ The goal is to accurately reproduce the concept discovery methodology from the S
 - Observation: Mean-pooled activations are backwards compatible but remove square-local chess information; `--activation-mode flat` and `--store-token-activations` are now available for Schut-style experiments.
 - Observation: The first GCP dynamic smoke run validates the new dynamic pipeline plumbing but is too small to make a novelty claim.
   Evidence: `gcp_dynamic_smoke_20260427` kept 1 rollout pair, dumped 6 flat trajectory activations, solved a `(1, 65536)` sparse concept with status `optimal`, and produced a novelty curve with `positive_rank_fraction=0.0` against a 10-position human reference.
+- Observation: Dynamic trajectory activations must be dumped from records rather than unique FEN lists for BT4 112-plane inputs.
+  Evidence: PV continuations encode differently when rolling history is present. `tools/build_mcts_pairs.py --out-trajectory-records` now writes history-aware records with `activation_keys`, `tools/materialize_mcts_pairs.py` uses those keys instead of collapsing repeated FENs, and `gcp_dynamic_smoke_records_20260427` validated the corrected path with LC0.
 
 ## Decision Log
 
@@ -66,7 +69,7 @@ The goal is to accurately reproduce the concept discovery methodology from the S
 - Extended the pipeline to persist Lichess puzzle tags (`.jsonl`) and developed `match_concepts.py` to project those human-interpretable tags onto our unsupervised concept vectors.
 - Validated the entire pipeline locally on a GCP Spot VM instance (`pipeline-vm`), achieving an end-to-end successful run (data extraction -> MCTS evaluation filter -> JAX activation dump -> SVM concept discovery -> Puzzle concept mapping).
 - Added the first dynamic-parity infrastructure: unpooled activation storage options, paired-difference sparse solving, LC0 MultiPV rollout-pair extraction, pair materialization, dynamic sparse solving, and SVD novelty curves.
-- Validated the dynamic path on GCP with the smoke run `data/runs/gcp_dynamic_smoke_20260427`.
+- Validated the corrected dynamic path on GCP with the history-aware smoke run `data/runs/gcp_dynamic_smoke_records_20260427`.
 
 **Next Steps:**
 1. Scale MCTS pair extraction and flat activation dumps on GCP with larger root sets, higher node budgets, and sharded resume support.
@@ -111,6 +114,12 @@ Square-aware activation dump example:
 
     cd /home/ubuntu/schutpaper
     python tools/dump_activations.py --pb models/BT4-1024x15x32h-swa-6147500-policytune-332.pb.gz --fens data/human.fens --out data/activations/human_flat --activation-mode flat --store-token-activations
+
+History-aware trajectory dump example:
+
+    cd /home/ubuntu/schutpaper
+    python tools/build_mcts_pairs.py --fens data/human.filtered.fens --out-jsonl data/runs/<RUN_ID>/mcts_pairs/pairs.jsonl --out-trajectory-records data/runs/<RUN_ID>/mcts_pairs/trajectory.records.jsonl --out-trajectory-fens data/runs/<RUN_ID>/mcts_pairs/trajectory.fens --lc0 /tmp/lc0-src/build/release/lc0 --weights models/BT4-1024x15x32h-swa-6147500-policytune-332.pb.gz --nodes 800 --multipv 4
+    python tools/dump_activations.py --pb models/BT4-1024x15x32h-swa-6147500-policytune-332.pb.gz --records data/runs/<RUN_ID>/mcts_pairs/trajectory.records.jsonl --out data/runs/<RUN_ID>/activations/trajectory_flat --activation-mode flat --store-token-activations
 
 Dynamic sparse solver example once `pairs.npz` exists:
 

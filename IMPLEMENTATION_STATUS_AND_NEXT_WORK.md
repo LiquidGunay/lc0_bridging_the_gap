@@ -16,16 +16,16 @@ Implemented toward parity:
 - `lc0jax.interpretability.concepts.dynamic_rollout_differences` aggregates stored optimal/subpar rollout activations into `psi(tau+) - psi(tau-)` rows.
 - `tools/solve_dynamic_concepts.py` solves active or reversed-sign sparse concepts from a stored rollout-pair `.npz` file.
 - `lc0jax.interpretability.novelty` and `tools/filter_novel_concepts.py` implement the Schut-style SVD reconstruction comparison between machine and human activation bases.
-- `lc0jax.interpretability.mcts_rollouts` and `tools/build_mcts_pairs.py` provide the first LC0 MultiPV rollout-pair builder. It writes JSONL records with root FEN, best PV, selected subpar PVs, centipawn scores, and trajectory FENs for later activation dumping.
-- `lc0jax.interpretability.pair_builders` and `tools/materialize_mcts_pairs.py` join rollout-pair JSONL records with trajectory activation shards and write solver-ready `pairs.npz` files containing `differences = psi(best) - psi(subpar)` plus aligned metadata.
+- `lc0jax.interpretability.mcts_rollouts` and `tools/build_mcts_pairs.py` provide the first LC0 MultiPV rollout-pair builder. It writes JSONL records with root FEN, best PV, selected subpar PVs, centipawn scores, optional unique trajectory FENs, and preferred trajectory activation records with rolling history.
+- `lc0jax.interpretability.pair_builders` and `tools/materialize_mcts_pairs.py` join rollout-pair JSONL records with trajectory activation shards and write solver-ready `pairs.npz` files containing `differences = psi(best) - psi(subpar)` plus aligned metadata. New trajectory records carry stable activation keys so repeated FENs under different histories do not collide.
 - `tools/pgn_to_activation_records.py` writes JSONL records with rolling `history_fens`, and `tools/dump_activations.py --records` passes those boards to LC0 encoding instead of using empty history.
 - `tools/run_full_pipeline.sh` now defaults to history-aware human activation records when the broadcast PGN is available; set `HISTORY_HUMAN_RECORDS=0` to keep the old FEN-only path.
-- GCP smoke run `data/runs/gcp_dynamic_smoke_20260427` on `pipeline-vm` validated the full dynamic path from LC0 MultiPV search through flat activation dumping, `pairs.npz` materialization, sparse solve, and novelty reporting.
+- GCP smoke run `data/runs/gcp_dynamic_smoke_records_20260427` on `pipeline-vm` validated the full dynamic path from LC0 MultiPV search through history-aware flat activation dumping, `pairs.npz` materialization, sparse solve, and novelty reporting.
 
 Known gaps:
 
 - The rollout materializer writes direct difference matrices rather than padded `optimal_rollouts` and `subpar_rollouts` tensors. This is solver-ready and avoids ragged PV padding, but a future report builder may still want optional padded trajectory tensors for visualization.
-- FEN-only activation dumps still call `encode_board(board, [])`; use `--records` for PGN-derived human games when history matters.
+- FEN-only activation dumps still call `encode_board(board, [])`; use `--records` for PGN-derived human games and MCTS trajectory dumps when history matters.
 - Static puzzle-tag matching is useful for interpretation, but it is not the unsupervised discovery signal used by Schut et al.
 - Teachability filtering is not implemented. We need a weaker LC0 checkpoint or student model, prototype curricula, KL distillation, and top-1 overlap lift against random-prototype baselines.
 - Full-scale activation dumps, MCTS pair extraction, SVD sweeps on large matrices, and teachability training should run on GCP, not on this local workspace.
@@ -65,6 +65,7 @@ Every GCP run should write outputs under `data/runs/<RUN_ID>/` and record the ma
 - 2026-04-27: CLI import smoke test passed for `tools/materialize_mcts_pairs.py`.
 - 2026-04-27: CLI import smoke tests passed for `tools/pgn_to_activation_records.py` and the updated `tools/dump_activations.py --records` interface.
 - 2026-04-27: CLI import smoke test passed for `tools/filter_activation_records.py`; `bash -n tools/run_full_pipeline.sh` passed.
-- 2026-04-27: GCP smoke run `gcp_dynamic_smoke_20260427` completed on `pipeline-vm` (`n2-standard-16` spot, CPU JAX, LC0 v0.32.1 built 2026-04-27). It kept 1 LC0 rollout pair from 20 root FENs, dumped 6 flat trajectory activations, materialized `pairs.npz` with shape `(1, 65536)`, solved a flat sparse concept with CVXPY status `optimal`, and wrote `novelty_report.json`.
-- 2026-04-27: The smoke novelty report used 6 trajectory samples versus 10 human-reference samples. The toy vector was not accepted as novel (`positive_rank_fraction=0.0`), which is expected for a tiny overlapping reference set and does not block the pipeline.
+- 2026-04-27: Initial GCP smoke run `gcp_dynamic_smoke_20260427` completed on `pipeline-vm` (`n2-standard-16` spot, CPU JAX, LC0 v0.32.1 built 2026-04-27), but PR review found that path used FEN-only trajectory activations and lost LC0 history context.
+- 2026-04-27: The builder now writes history-aware `--out-trajectory-records`, activation shards store `activation_keys`, and materialization indexes by those keys when present.
+- 2026-04-27: Replacement GCP smoke run `gcp_dynamic_smoke_records_20260427` completed with history-aware trajectory records. It kept 1 LC0 rollout pair from 20 root FENs, wrote 7 trajectory records, materialized `pairs.npz` with shape `(1, 65536)`, solved a flat sparse concept with CVXPY status `optimal`, and wrote `novelty_report.json` with `positive_rank_fraction=1.0` on the tiny smoke reference set.
 - 2026-04-27: Ruff could not be run because it is not installed in the current `.venv`; line lengths were checked manually for the touched Python files.

@@ -19,7 +19,11 @@ from .datasets import (
     pgn_to_activation_records,
     pgn_to_fens,
 )
-from .mcts_rollouts import build_rollout_pair_record, pv_to_fens
+from .mcts_rollouts import (
+    activation_records_for_line,
+    build_rollout_pair_record,
+    pv_to_fens,
+)
 from .novelty import novelty_curve, reconstruction_loss, right_svd_basis
 from .pair_builders import (
     iter_rollout_pair_records,
@@ -49,6 +53,7 @@ __all__ = [
     "pgn_to_activation_records",
     "pgn_to_fens",
     "build_rollout_pair_record",
+    "activation_records_for_line",
     "pv_to_fens",
     "iter_rollout_pair_records",
     "load_activation_index",

@@ -86,6 +86,7 @@ def dump_activations(
     history_acc: list[list[str]] = []
     game_id_acc: list[str] = []
     ply_acc: list[int] = []
+    activation_key_acc: list[str] = []
     processed = 0
     start_time = time.time()
 
@@ -94,6 +95,7 @@ def dump_activations(
     batch_history_fens: list[list[str]] = []
     batch_game_ids: list[str] = []
     batch_plies: list[int] = []
+    batch_activation_keys: list[str] = []
 
     def _format_eta(rate: float, remaining: int) -> str:
         if rate <= 0:
@@ -138,6 +140,7 @@ def dump_activations(
             "history_fens": np.asarray(history_acc, dtype=object),
             "game_ids": np.asarray(game_id_acc, dtype=object),
             "plies": np.asarray(ply_acc, dtype=np.int32),
+            "activation_keys": np.asarray(activation_key_acc, dtype=object),
             "layer": np.asarray(layer),
             "activation_mode": np.asarray(activation_mode),
         }
@@ -166,25 +169,28 @@ def dump_activations(
         history_acc.extend(batch_history_fens)
         game_id_acc.extend(batch_game_ids)
         ply_acc.extend(batch_plies)
+        activation_key_acc.extend(batch_activation_keys)
 
-    def normalize_item(item) -> tuple[str, list[str], str, int]:
+    def normalize_item(item) -> tuple[str, list[str], str, int, str]:
         if isinstance(item, str):
-            return item, [], "", -1
+            return item, [], "", -1, ""
         if not isinstance(item, dict):
             raise TypeError(f"Unsupported activation dataset item: {type(item)!r}")
         fen = item["fen"]
         history_fens = [str(history_fen) for history_fen in item.get("history_fens", [])]
         game_id = str(item.get("game_id", ""))
         ply = int(item.get("ply", -1))
-        return fen, history_fens, game_id, ply
+        activation_key = str(item.get("activation_key", ""))
+        return fen, history_fens, game_id, ply, activation_key
 
     for item in dataset_iter:
-        fen, history_fens, game_id, ply = normalize_item(item)
+        fen, history_fens, game_id, ply, activation_key = normalize_item(item)
         board = chess.Board(fen)
         batch_fens.append(fen)
         batch_history_fens.append(history_fens)
         batch_game_ids.append(game_id)
         batch_plies.append(ply)
+        batch_activation_keys.append(activation_key)
         history_boards = [chess.Board(history_fen) for history_fen in history_fens]
         batch_planes.append(
             encode_board(
@@ -214,12 +220,14 @@ def dump_activations(
             history_acc.clear()
             game_id_acc.clear()
             ply_acc.clear()
+            activation_key_acc.clear()
 
         batch_planes.clear()
         batch_fens.clear()
         batch_history_fens.clear()
         batch_game_ids.clear()
         batch_plies.clear()
+        batch_activation_keys.clear()
 
     if batch_planes:
         append_batch()
