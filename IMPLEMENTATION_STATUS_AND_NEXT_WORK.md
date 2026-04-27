@@ -6,7 +6,7 @@ Updated: 2026-04-27
 
 The repo has a solid LC0 BT4 substrate: protobuf weight loading, JAX/Flax inference, ONNX oracle checks, LC0 input encoding, policy mapping, activation dumping, dataset filters, concept direction experiments, causal patching, and report generation.
 
-The Schut-parity status is partial but now has an end-to-end dynamic smoke path. The existing concept discovery pipeline can solve static sparse separators over two activation datasets, and the new dynamic path can extract LC0 MCTS optimal/subpar rollout pairs, dump flat trajectory activations, materialize paired differences, split held-out roots, solve a sparse vector, and run novelty scoring. The remaining gap is scale and evaluation rigor, not basic plumbing.
+The Schut-parity status is partial but now has an end-to-end dynamic path beyond the first smoke tests. The existing concept discovery pipeline can solve static sparse separators over two activation datasets, and the new dynamic path can extract LC0 MCTS optimal/subpar rollout pairs, dump flat trajectory activations, materialize paired differences, split held-out roots, solve sparse vectors, run held-out reports, select prototypes, export teachability curricula, and run policy-margin patch checks. The remaining gap is robust scale and evaluation rigor, not basic plumbing.
 
 Implemented toward parity:
 
@@ -28,6 +28,8 @@ Implemented toward parity:
 - `tools/pgn_to_activation_records.py` writes JSONL records with rolling `history_fens`, and `tools/dump_activations.py --records` passes those boards to LC0 encoding instead of using empty history.
 - `tools/run_full_pipeline.sh` now defaults to history-aware human activation records when the broadcast PGN is available; set `HISTORY_HUMAN_RECORDS=0` to keep the old FEN-only path.
 - GCP smoke run `data/runs/gcp_dynamic_smoke_records_20260427` on `pipeline-vm` validated the full dynamic path from LC0 MultiPV search through history-aware flat activation dumping, `pairs.npz` materialization, sparse solve, and novelty reporting.
+- GCP larger run `data/runs/gcp_dynamic_large_20260427_174945` had 100 candidate evaluation roots available on `pipeline-vm` (`us-central1-a`, `n2-standard-16`, no accelerator, CPU/JAX path, LC0 Eigen backend), using LC0 at `/root/lc0-src/build/release/lc0` (`v0.32.1 built Apr 27 2026`), BT4 SHA256 `e6ada9d6c4a769bfab3aa0848d82caeb809aa45f83e6c605fc58a31d21bdd618`, 800 LC0 nodes, MultiPV 4, and `max_pairs=40`. It scanned 49 roots before hitting the cap, kept 40 rollout-pair records, wrote 948 history-aware trajectory records, and materialized 93 flat dynamic differences with a grouped split of 72 train / 21 held-out rows.
+- The same larger run completed an end-to-end mean-pooled fallback report under `data/runs/gcp_dynamic_large_20260427_174945/concepts/dynamic_sparse_mean`: mean pair shape `(93, 1024)`, train `(72, 1024)`, test `(21, 1024)`, solver status `optimal`, train constraint satisfaction `1.0`, train margin satisfaction `0.75`, held-out constraint satisfaction `0.667`, held-out margin satisfaction `0.381`, 32 teachability curriculum rows, and policy-margin `mean_delta_margin=-2.42e-08` on 16 held-out rows at `alpha=0.1`.
 
 Known gaps:
 
@@ -35,18 +37,20 @@ Known gaps:
 - FEN-only activation dumps still call `encode_board(board, [])`; use `--records` for PGN-derived human games and MCTS trajectory dumps when history matters.
 - Static puzzle-tag matching is useful for interpretation, but it is not the unsupervised discovery signal used by Schut et al.
 - Teachability filtering is not implemented. We need a weaker LC0 checkpoint or student model, prototype curricula, KL distillation, and top-1 overlap lift against random-prototype baselines.
+- The direct flat sparse CVXPY/SCS solve does not yet scale comfortably. On the larger GCP run, solving 72 train rows over 65,536 flat features was still active after about 30 minutes on `n2-standard-16` and was terminated after the mean-pooled fallback completed. Keep the flat pair artifacts, but add a faster solver path before larger flat sweeps.
+- The first mean-pooled policy-margin patch effect was effectively zero at `alpha=0.1`. This validates the patch/report plumbing on held-out rows, but not concept strength or causal usefulness.
 - Full-scale activation dumps, MCTS pair extraction, SVD sweeps on large matrices, and teachability training should run on GCP, not on this local workspace.
 
 ## Next Work Items
 
-1. Scale the dynamic pipeline beyond the smoke run.
-   Use a nontrivial root set, higher LC0 node budgets, sharding, and held-out pairs. Keep outputs under `data/runs/<RUN_ID>/` and record commands, LC0 version, model checksum, machine type, and node budget.
+1. Add a faster large-flat dynamic solver path.
+   The next implementation step should make 65,536-dimensional flat dynamic solves practical. Candidate approaches: feature screening by univariate margins before CVXPY, an sklearn sparse linear SVM/logistic fallback, SCS iteration/time-limit controls, token/channel grouped reductions, or a two-stage mean-to-flat refinement. Keep the exact Schut L1 objective available for small runs.
 
-2. Run dynamic concept reports with causal policy-margin effects.
-   The report tooling now includes roots, best/subpar moves, PVs, solver stats, pair materialization metadata, novelty summaries, baselines, and optional policy-margin patch summaries. Run this on larger dynamic datasets and include the report artifacts.
+2. Re-run the larger flat report after the solver bottleneck is addressed.
+   Reuse or regenerate a run like `gcp_dynamic_large_20260427_174945`, solve on the root-grouped train split, then run held-out evaluation, baselines, prototype selection, curriculum export, and policy-margin patching on the held-out test split.
 
-3. Use held-out dynamic concept splits in the next GCP run.
-   The split tool now creates root-grouped train/test `pairs.npz` files, ignoring FEN fullmove counters for grouping. Solve on train, then run held-out evaluation, baselines, policy-margin patching, and reports on held-out test pairs.
+3. Improve causal patch calibration.
+   Sweep `alpha`, compare normalized `direction` vs `raw_direction`, and report policy-margin/top-1 changes against random and shuffled controls. The first larger mean-pooled run had near-zero margin movement, so this needs quantitative calibration before teachability claims.
 
 4. Scale random and shuffled baselines.
    The baseline tool now supports random sparse vectors, shuffled-label projections, and optional shuffled sparse solves. Run it on larger dynamic datasets and add held-out train/test splits by root position.
@@ -81,3 +85,4 @@ Every GCP run should write outputs under `data/runs/<RUN_ID>/` and record the ma
 - 2026-04-27: Dynamic prototype selection tests passed; `.venv/bin/python -m pytest -q` passed with 66 tests after adding `tools/select_dynamic_prototypes.py`. Review hardening added reversed-concept scoring, original-space direction-key validation, custom row metadata propagation, and explicit `--prototypes` report CLI coverage.
 - 2026-04-27: Teachability curriculum export tests passed; `.venv/bin/python -m pytest -q` passed with 72 tests after adding `tools/export_teachability_curriculum.py`. Review hardening added required row-field validation, provenance in each curriculum row, and negative-limit CLI coverage.
 - 2026-04-27: Ruff could not be run because it is not installed in the current `.venv`; line lengths were checked manually for the touched Python files.
+- 2026-04-27: Larger GCP dynamic validation `gcp_dynamic_large_20260427_174945` ran on `pipeline-vm` with LC0 nodes `800`, MultiPV `4`, and `max_pairs=40`. MCTS kept 40 pair records from 49 scanned roots and produced 948 history-aware trajectory records. Flat materialization produced `(93, 65536)` differences split into 72 train / 21 test rows, but the flat CVXPY/SCS solve was still running after about 30 minutes and was terminated. A mean-pooled fallback completed end-to-end with `(93, 1024)` differences, solver status `optimal`, held-out constraint satisfaction `0.667`, held-out margin satisfaction `0.381`, 32 curriculum rows, and policy-margin `mean_delta_margin=-2.42e-08` at `alpha=0.1`. Exact command lines and environment metadata are recorded in `data/runs/gcp_dynamic_large_20260427_174945/RUN_METADATA.md` on `pipeline-vm`; refreshed local artifact bundle: `/tmp/gcp_dynamic_large_20260427_174945_mean_artifacts.tar.gz`.
