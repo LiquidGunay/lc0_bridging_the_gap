@@ -13,6 +13,7 @@ def policy_margin_report(
     patched_policy: np.ndarray,
     best_indices: list[int] | np.ndarray,
     subpar_indices: list[int] | np.ndarray,
+    legal_masks: np.ndarray | None = None,
     root_fens: list[str],
     best_moves: list[str],
     subpar_moves: list[str],
@@ -32,6 +33,12 @@ def policy_margin_report(
         raise ValueError("best_indices and subpar_indices must have the same shape")
     if best_indices.shape[0] != base_policy.shape[0]:
         raise ValueError("Move index count must match policy batch size")
+    if legal_masks is not None:
+        legal_masks = np.asarray(legal_masks, dtype=bool)
+        if legal_masks.shape != base_policy.shape:
+            raise ValueError(
+                f"Legal mask shape mismatch: {legal_masks.shape} vs {base_policy.shape}"
+            )
 
     row_idx = np.arange(base_policy.shape[0])
     base_margin = base_policy[row_idx, best_indices] - base_policy[row_idx, subpar_indices]
@@ -39,8 +46,14 @@ def policy_margin_report(
         patched_policy[row_idx, best_indices] - patched_policy[row_idx, subpar_indices]
     )
     delta_margin = patched_margin - base_margin
-    base_top = np.argmax(base_policy, axis=1)
-    patched_top = np.argmax(patched_policy, axis=1)
+    if legal_masks is None:
+        base_for_top = base_policy
+        patched_for_top = patched_policy
+    else:
+        base_for_top = np.where(legal_masks, base_policy, -np.inf)
+        patched_for_top = np.where(legal_masks, patched_policy, -np.inf)
+    base_top = np.argmax(base_for_top, axis=1)
+    patched_top = np.argmax(patched_for_top, axis=1)
 
     examples = []
     for idx in range(base_policy.shape[0]):
@@ -66,5 +79,6 @@ def policy_margin_report(
         "median_delta_margin": float(np.median(delta_margin)),
         "fraction_delta_positive": float(np.mean(delta_margin > 0)),
         "top1_change_rate": float(np.mean(base_top != patched_top)),
+        "top1_legal_masked": bool(legal_masks is not None),
         "examples": examples,
     }

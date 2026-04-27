@@ -11,7 +11,7 @@ import numpy as np
 from lc0jax.interpretability.dynamic_causal import policy_margin_report
 from lc0jax.modeling.encode import encode_board
 from lc0jax.modeling.inference import forward
-from lc0jax.modeling.policy import attention_policy_map, move_to_policy_index
+from lc0jax.modeling.policy import attention_policy_map, legal_move_mask, move_to_policy_index
 from lc0jax.modeling.weights import load_pb_gz, map_bt4_weights
 
 try:
@@ -81,6 +81,7 @@ def main() -> int:
     best_indices = []
     subpar_indices = []
     valid_rows = {"root_fens": [], "best_moves": [], "subpar_moves": []}
+    legal_masks = []
     skipped = 0
     for root_fen, best_move, subpar_move in zip(
         rows["root_fens"],
@@ -90,12 +91,19 @@ def main() -> int:
         try:
             best_idx = move_to_policy_index(str(best_move), "lc0_1858")
             subpar_idx = move_to_policy_index(str(subpar_move), "lc0_1858")
-            chess.Board(str(root_fen))
+            board = chess.Board(str(root_fen))
         except (KeyError, ValueError):
+            skipped += 1
+            continue
+        if (
+            chess.Move.from_uci(str(best_move)) not in board.legal_moves
+            or chess.Move.from_uci(str(subpar_move)) not in board.legal_moves
+        ):
             skipped += 1
             continue
         best_indices.append(best_idx)
         subpar_indices.append(subpar_idx)
+        legal_masks.append(legal_move_mask(board, "lc0_1858"))
         valid_rows["root_fens"].append(str(root_fen))
         valid_rows["best_moves"].append(str(best_move))
         valid_rows["subpar_moves"].append(str(subpar_move))
@@ -135,6 +143,7 @@ def main() -> int:
         patched_policy=np.concatenate(patched_batches, axis=0),
         best_indices=best_indices,
         subpar_indices=subpar_indices,
+        legal_masks=np.asarray(legal_masks, dtype=bool),
         root_fens=valid_rows["root_fens"],
         best_moves=valid_rows["best_moves"],
         subpar_moves=valid_rows["subpar_moves"],

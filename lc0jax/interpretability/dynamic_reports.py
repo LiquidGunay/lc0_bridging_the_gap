@@ -143,6 +143,7 @@ def _policy_margin_lines(policy_margin_report: dict[str, Any] | None) -> list[st
             f"{_format_float(policy_margin_report.get('fraction_delta_positive'))}"
         ),
         f"- top1 change rate: {_format_float(policy_margin_report.get('top1_change_rate'))}",
+        f"- top1 legal masked: {policy_margin_report.get('top1_legal_masked', 'n/a')}",
     ]
 
 

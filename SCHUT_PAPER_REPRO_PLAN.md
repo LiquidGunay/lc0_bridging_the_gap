@@ -47,7 +47,7 @@ The goal is to accurately reproduce the concept discovery methodology from the S
 - Observation: Dynamic trajectory activations must be dumped from records rather than unique FEN lists for BT4 112-plane inputs.
   Evidence: PV continuations encode differently when rolling history is present. `tools/build_mcts_pairs.py --out-trajectory-records` now writes history-aware records with `activation_keys`, `tools/materialize_mcts_pairs.py` uses those keys instead of collapsing repeated FENs, and `gcp_dynamic_smoke_records_20260427` validated the corrected path with LC0.
 - Observation: The first policy-margin smoke validates patch/report plumbing, not concept effect size.
-  Evidence: `tools/dynamic_policy_margin.py` ran on `gcp_dynamic_smoke_records_20260427` with one pair and `alpha=0.1`, wrote `policy_margin_report.json`, and produced `mean_delta_margin=0.0`.
+  Evidence: `tools/dynamic_policy_margin.py` ran on `gcp_dynamic_smoke_records_20260427` with one pair and `alpha=0.1`, wrote `policy_margin_report.json`, used legal-masked top-1 metrics, and produced `mean_delta_margin=0.0`.
 
 ## Decision Log
 
