@@ -59,6 +59,8 @@ Record the LC0 version used for ONNX export and the BT4 model checksum (see `AGE
   - `python tools/split_dynamic_pairs.py --pairs data/runs/<RUN_ID>/mcts_pairs/pairs.npz --out-train data/runs/<RUN_ID>/mcts_pairs/pairs.train.npz --out-test data/runs/<RUN_ID>/mcts_pairs/pairs.test.npz --test-fraction 0.2 --seed 0`
     The split groups by root FEN without the fullmove counter; use repeated `--row-aligned-key` flags for any custom per-pair arrays.
   - `python tools/solve_dynamic_concepts.py --pairs data/runs/<RUN_ID>/mcts_pairs/pairs.train.npz --out data/runs/<RUN_ID>/concepts/dynamic_sparse --mode flat`
+    For large flat runs, use deterministic feature screening as a support-constrained approximation: it solves the same CVXPY objective on selected columns, then expands the solved direction back to the original feature dimension:
+    `python tools/solve_dynamic_concepts.py --pairs data/runs/<RUN_ID>/mcts_pairs/pairs.train.npz --out data/runs/<RUN_ID>/concepts/dynamic_sparse_screened --mode flat --max-features 2048`
   - `python tools/evaluate_dynamic_concept.py --pairs data/runs/<RUN_ID>/mcts_pairs/pairs.test.npz --concept data/runs/<RUN_ID>/concepts/dynamic_sparse --out data/runs/<RUN_ID>/concepts/dynamic_sparse/heldout_eval_report.json --split-name test`
     This evaluates `raw_direction` by default so held-out margin metrics are comparable to the solver report.
   - `python tools/select_dynamic_prototypes.py --pairs data/runs/<RUN_ID>/mcts_pairs/pairs.train.npz --concept data/runs/<RUN_ID>/concepts/dynamic_sparse --out data/runs/<RUN_ID>/concepts/dynamic_sparse/prototypes_report.json --top-k 32 --random-count 32 --split-name train`

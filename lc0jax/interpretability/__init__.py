@@ -6,6 +6,8 @@ from .concepts import (
     discover_concepts,
     dynamic_rollout_differences,
     patch_activations,
+    screen_sparse_concept_features,
+    solve_screened_sparse_concept_from_differences,
     solve_sparse_concept_from_differences,
 )
 from .datasets import (
@@ -61,6 +63,8 @@ __all__ = [
     "discover_concepts",
     "dynamic_rollout_differences",
     "patch_activations",
+    "screen_sparse_concept_features",
+    "solve_screened_sparse_concept_from_differences",
     "solve_sparse_concept_from_differences",
     "novelty_curve",
     "reconstruction_loss",

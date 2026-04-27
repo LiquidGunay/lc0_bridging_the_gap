@@ -20,6 +20,11 @@ def _normalize_vector(vec: np.ndarray) -> tuple[np.ndarray, float]:
     return vec / norm, norm
 
 
+def _safe_feature_std(diff: np.ndarray, *, epsilon: float) -> np.ndarray:
+    feature_std = diff.std(axis=0)
+    return np.where(feature_std < epsilon, 1.0, feature_std)
+
+
 def solve_sparse_concept_from_differences(
     differences: np.ndarray,
     *,
@@ -45,8 +50,7 @@ def solve_sparse_concept_from_differences(
         raise ValueError("At least one paired difference is required")
 
     if standardize:
-        feature_std = diff.std(axis=0)
-        feature_std = np.where(feature_std < epsilon, 1.0, feature_std)
+        feature_std = _safe_feature_std(diff, epsilon=epsilon)
         solver_diff = diff / feature_std
     else:
         feature_std = np.ones(diff.shape[1], dtype=np.float64)
@@ -84,6 +88,136 @@ def solve_sparse_concept_from_differences(
         "objective": float(prob.value) if prob.value is not None else None,
         "status": prob.status,
         "method": "sparse_cvxpy",
+    }
+
+
+def screen_sparse_concept_features(
+    differences: np.ndarray,
+    *,
+    max_features: int,
+    method: str = "abs_mean",
+    standardize: bool = True,
+    epsilon: float = 1e-6,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Select a deterministic high-signal feature subset for large sparse solves."""
+    diff = np.asarray(differences, dtype=np.float64)
+    if diff.ndim != 2:
+        raise ValueError(f"Expected a rank-2 difference matrix, got {diff.shape}")
+    if diff.shape[0] == 0:
+        raise ValueError("At least one paired difference is required")
+    if diff.shape[1] == 0:
+        raise ValueError("At least one feature column is required")
+    if max_features < 1:
+        raise ValueError("max_features must be >= 1")
+
+    if standardize:
+        feature_std = _safe_feature_std(diff, epsilon=epsilon)
+        scoring_diff = diff / feature_std
+    else:
+        scoring_diff = diff
+
+    if method == "abs_mean":
+        scores = np.abs(scoring_diff.mean(axis=0))
+    elif method == "mean_abs":
+        scores = np.mean(np.abs(scoring_diff), axis=0)
+    else:
+        raise ValueError(f"Unsupported screening method: {method}")
+    scores = np.nan_to_num(scores, nan=0.0, posinf=0.0, neginf=0.0)
+
+    keep = min(int(max_features), int(diff.shape[1]))
+    order = np.lexsort((np.arange(scores.shape[0]), -scores))
+    return np.sort(order[:keep]), scores
+
+
+def solve_screened_sparse_concept_from_differences(
+    differences: np.ndarray,
+    *,
+    max_features: int,
+    screening_method: str = "abs_mean",
+    c: float = 1.0,
+    margin: float = 1.0,
+    standardize: bool = True,
+    epsilon: float = 1e-6,
+    solver: str | None = None,
+):
+    """Solve the sparse concept objective after deterministic feature screening.
+
+    The CVXPY objective is unchanged, but it is solved only on the selected
+    feature subset. Returned vectors are expanded back to the original feature
+    dimension so downstream patching and evaluation code can stay unchanged.
+    """
+    diff = np.asarray(differences, dtype=np.float64)
+    selected, scores = screen_sparse_concept_features(
+        diff,
+        max_features=max_features,
+        method=screening_method,
+        standardize=standardize,
+        epsilon=epsilon,
+    )
+    if selected.shape[0] == diff.shape[1]:
+        result = solve_sparse_concept_from_differences(
+            diff,
+            c=c,
+            margin=margin,
+            standardize=standardize,
+            epsilon=epsilon,
+            solver=solver,
+        )
+        result.update(
+            {
+                "screening_enabled": False,
+                "screening_method": screening_method,
+                "screening_max_features": int(max_features),
+                "screening_indices": selected,
+                "screening_scores": scores[selected],
+                "source_dimension": int(diff.shape[1]),
+                "screened_dimension": int(diff.shape[1]),
+            }
+        )
+        return result
+
+    sub_result = solve_sparse_concept_from_differences(
+        diff[:, selected],
+        c=c,
+        margin=margin,
+        standardize=standardize,
+        epsilon=epsilon,
+        solver=solver,
+    )
+
+    raw = np.zeros(diff.shape[1], dtype=np.float64)
+    raw[selected] = sub_result["raw_direction"]
+    standardized_raw = np.zeros(diff.shape[1], dtype=np.float64)
+    standardized_raw[selected] = sub_result["standardized_raw_direction"]
+    if standardize:
+        feature_std = _safe_feature_std(diff, epsilon=epsilon)
+    else:
+        feature_std = np.ones(diff.shape[1], dtype=np.float64)
+
+    direction, norm = _normalize_vector(raw)
+    standardized_direction, standardized_norm = _normalize_vector(standardized_raw)
+    margins = diff @ raw
+    return {
+        "direction": direction,
+        "raw_direction": raw,
+        "standardized_direction": standardized_direction,
+        "standardized_raw_direction": standardized_raw,
+        "feature_std": feature_std,
+        "norm": norm,
+        "standardized_norm": standardized_norm,
+        "constraint_satisfaction": float(np.mean(margins > 0)),
+        "margin_satisfaction": float(np.mean(margins >= margin - epsilon)),
+        "margins": margins,
+        "objective": sub_result["objective"],
+        "status": sub_result["status"],
+        "method": "screened_sparse_cvxpy",
+        "screening_enabled": True,
+        "screening_method": screening_method,
+        "screening_max_features": int(max_features),
+        "screening_indices": selected,
+        "screening_scores": scores[selected],
+        "source_dimension": int(diff.shape[1]),
+        "screened_dimension": int(selected.shape[0]),
     }
 
 
