@@ -19,6 +19,7 @@ Implemented toward parity:
 - `lc0jax.interpretability.mcts_rollouts` and `tools/build_mcts_pairs.py` provide the first LC0 MultiPV rollout-pair builder. It writes JSONL records with root FEN, best PV, selected subpar PVs, centipawn scores, optional unique trajectory FENs, and preferred trajectory activation records with rolling history.
 - `lc0jax.interpretability.pair_builders` and `tools/materialize_mcts_pairs.py` join rollout-pair JSONL records with trajectory activation shards and write solver-ready `pairs.npz` files containing `differences = psi(best) - psi(subpar)` plus aligned metadata. New trajectory records carry stable activation keys so repeated FENs under different histories do not collide.
 - `lc0jax.interpretability.dynamic_reports` and `tools/build_dynamic_concept_report.py` build markdown report cards from `pairs.npz`, solver `report.json`, and optional `novelty_report.json`.
+- `lc0jax.interpretability.dynamic_baselines` and `tools/dynamic_concept_baselines.py` compare learned dynamic directions against random sparse vectors, shuffled-label projections, and optional shuffled-label sparse solves.
 - `tools/pgn_to_activation_records.py` writes JSONL records with rolling `history_fens`, and `tools/dump_activations.py --records` passes those boards to LC0 encoding instead of using empty history.
 - `tools/run_full_pipeline.sh` now defaults to history-aware human activation records when the broadcast PGN is available; set `HISTORY_HUMAN_RECORDS=0` to keep the old FEN-only path.
 - GCP smoke run `data/runs/gcp_dynamic_smoke_records_20260427` on `pipeline-vm` validated the full dynamic path from LC0 MultiPV search through history-aware flat activation dumping, `pairs.npz` materialization, sparse solve, and novelty reporting.
@@ -42,8 +43,8 @@ Known gaps:
 3. Wire dynamic concept reports.
    Extend report tooling to include optimal/subpar moves, PVs, constraint satisfaction, novelty curves, and causal policy-margin effects for the discovered dynamic vector.
 
-4. Add random and shuffled baselines.
-   For each dynamic concept run, solve against shuffled pair labels and random sparse vectors so held-out constraint satisfaction, novelty area, and patching effects have a meaningful baseline.
+4. Scale random and shuffled baselines.
+   The baseline tool now supports random sparse vectors, shuffled-label projections, and optional shuffled sparse solves. Run it on larger dynamic datasets and add held-out train/test splits by root position.
 
 5. Add teachability evaluation.
    Start with a small student or weaker LC0 checkpoint and concept prototypes. Train on concept prototypes with KL to the teacher policy and report top-1 overlap lift against random prototype curricula.

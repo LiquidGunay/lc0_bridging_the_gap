@@ -63,6 +63,27 @@ def test_build_dynamic_concept_report_includes_solver_novelty_and_pairs(tmp_path
         ),
         encoding="utf-8",
     )
+    (concept_dir / "baselines_report.json").write_text(
+        json.dumps(
+            {
+                "nonzero_features": 1,
+                "actual": {
+                    "constraint_satisfaction": 1.0,
+                    "mean_score": 2.0,
+                },
+                "random_sparse": {
+                    "constraint_satisfaction_mean": 0.25,
+                },
+                "shuffled_labels": {
+                    "constraint_satisfaction_mean": 0.5,
+                },
+                "shuffled_solve": {
+                    "count": 0,
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
 
     report = build_dynamic_concept_report(
         pairs_path=pairs,
@@ -75,4 +96,6 @@ def test_build_dynamic_concept_report_includes_solver_novelty_and_pairs(tmp_path
     assert "- activation key: token_activations" in report
     assert "- accepted vectors: [0]" in report
     assert "- vector 0: novelty_area=0.125000" in report
+    assert "- actual constraint satisfaction: 1.000000" in report
+    assert "- random sparse constraint satisfaction mean: 0.250000" in report
     assert "| 0 | e2e4 (50) | d2d4 (10) | 40 | e2e4 e7e5 | d2d4 d7d5 | root fen |" in report

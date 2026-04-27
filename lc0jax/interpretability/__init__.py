@@ -19,6 +19,11 @@ from .datasets import (
     pgn_to_activation_records,
     pgn_to_fens,
 )
+from .dynamic_baselines import (
+    dynamic_baseline_report,
+    evaluate_direction,
+    random_sparse_directions,
+)
 from .dynamic_reports import build_dynamic_concept_report
 from .mcts_rollouts import (
     activation_records_for_line,
@@ -53,6 +58,9 @@ __all__ = [
     "parse_time_control",
     "pgn_to_activation_records",
     "pgn_to_fens",
+    "dynamic_baseline_report",
+    "evaluate_direction",
+    "random_sparse_directions",
     "build_dynamic_concept_report",
     "build_rollout_pair_record",
     "activation_records_for_line",

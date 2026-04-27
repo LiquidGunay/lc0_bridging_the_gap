@@ -16,6 +16,10 @@ def main() -> int:
         "--novelty",
         help="Optional novelty_report.json path. Defaults to <concept>/novelty_report.json.",
     )
+    parser.add_argument(
+        "--baselines",
+        help="Optional baselines_report.json path. Defaults to <concept>/baselines_report.json.",
+    )
     parser.add_argument("--out", required=True, help="Output markdown path.")
     parser.add_argument("--top-n", type=int, default=10)
     args = parser.parse_args()
@@ -24,6 +28,7 @@ def main() -> int:
         pairs_path=args.pairs,
         concept_dir=args.concept,
         novelty_path=args.novelty,
+        baselines_path=args.baselines,
         top_n=args.top_n,
     )
     out_path = Path(args.out)

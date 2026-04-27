@@ -85,11 +85,43 @@ def _novelty_lines(novelty_report: dict[str, Any] | None) -> list[str]:
     return lines
 
 
+def _baseline_lines(baselines_report: dict[str, Any] | None) -> list[str]:
+    if not baselines_report:
+        return ["## Baselines", "", "- report: not provided"]
+    actual = baselines_report.get("actual", {})
+    random_sparse = baselines_report.get("random_sparse", {})
+    shuffled_labels = baselines_report.get("shuffled_labels", {})
+    shuffled_solve = baselines_report.get("shuffled_solve", {})
+    return [
+        "## Baselines",
+        "",
+        f"- nonzero features: {baselines_report.get('nonzero_features', 'n/a')}",
+        (
+            "- actual constraint satisfaction: "
+            f"{_format_float(actual.get('constraint_satisfaction'))}"
+        ),
+        f"- actual mean score: {_format_float(actual.get('mean_score'))}",
+        (
+            "- random sparse constraint satisfaction mean: "
+            f"{_format_float(random_sparse.get('constraint_satisfaction_mean'))}"
+        ),
+        (
+            "- shuffled-label constraint satisfaction mean: "
+            f"{_format_float(shuffled_labels.get('constraint_satisfaction_mean'))}"
+        ),
+        (
+            "- shuffled-solve count: "
+            f"{shuffled_solve.get('count', 0)}"
+        ),
+    ]
+
+
 def build_dynamic_concept_report(
     *,
     pairs_path: str | Path,
     concept_dir: str | Path,
     novelty_path: str | Path | None = None,
+    baselines_path: str | Path | None = None,
     top_n: int = 10,
 ) -> str:
     """Return a markdown report for a dynamic concept run."""
@@ -103,6 +135,12 @@ def build_dynamic_concept_report(
         novelty_report = _read_json(candidate) if candidate.exists() else None
     else:
         novelty_report = _read_json(Path(novelty_path))
+
+    if baselines_path is None:
+        candidate = concept_dir / "baselines_report.json"
+        baselines_report = _read_json(candidate) if candidate.exists() else None
+    else:
+        baselines_report = _read_json(Path(baselines_path))
 
     metadata = pairs["metadata"]
     differences_shape = pairs["differences_shape"]
@@ -144,6 +182,7 @@ def build_dynamic_concept_report(
         )
 
     lines.extend(["", *_novelty_lines(novelty_report), ""])
+    lines.extend([*_baseline_lines(baselines_report), ""])
     lines.extend(
         [
             "## Pair Examples",
