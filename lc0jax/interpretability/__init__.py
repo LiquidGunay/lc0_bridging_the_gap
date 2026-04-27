@@ -25,6 +25,7 @@ from .dynamic_baselines import (
     random_sparse_directions,
 )
 from .dynamic_causal import policy_margin_report
+from .dynamic_evaluation import dynamic_evaluation_report
 from .dynamic_reports import build_dynamic_concept_report
 from .dynamic_splits import (
     infer_pair_row_count,
@@ -70,6 +71,7 @@ __all__ = [
     "evaluate_direction",
     "random_sparse_directions",
     "policy_margin_report",
+    "dynamic_evaluation_report",
     "build_dynamic_concept_report",
     "infer_pair_row_count",
     "root_fen_group_key",

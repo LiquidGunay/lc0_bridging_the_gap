@@ -21,6 +21,13 @@ def main() -> int:
         help="Optional baselines_report.json path. Defaults to <concept>/baselines_report.json.",
     )
     parser.add_argument(
+        "--evaluation",
+        help=(
+            "Optional heldout_eval_report.json path. Defaults to "
+            "<concept>/heldout_eval_report.json."
+        ),
+    )
+    parser.add_argument(
         "--policy-margin",
         help=(
             "Optional policy_margin_report.json path. Defaults to "
@@ -35,6 +42,7 @@ def main() -> int:
         pairs_path=args.pairs,
         concept_dir=args.concept,
         novelty_path=args.novelty,
+        evaluation_path=args.evaluation,
         baselines_path=args.baselines,
         policy_margin_path=args.policy_margin,
         top_n=args.top_n,

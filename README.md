@@ -59,6 +59,8 @@ Record the LC0 version used for ONNX export and the BT4 model checksum (see `AGE
   - `python tools/split_dynamic_pairs.py --pairs data/runs/<RUN_ID>/mcts_pairs/pairs.npz --out-train data/runs/<RUN_ID>/mcts_pairs/pairs.train.npz --out-test data/runs/<RUN_ID>/mcts_pairs/pairs.test.npz --test-fraction 0.2 --seed 0`
     The split groups by root FEN without the fullmove counter; use repeated `--row-aligned-key` flags for any custom per-pair arrays.
   - `python tools/solve_dynamic_concepts.py --pairs data/runs/<RUN_ID>/mcts_pairs/pairs.train.npz --out data/runs/<RUN_ID>/concepts/dynamic_sparse --mode flat`
+  - `python tools/evaluate_dynamic_concept.py --pairs data/runs/<RUN_ID>/mcts_pairs/pairs.test.npz --concept data/runs/<RUN_ID>/concepts/dynamic_sparse --out data/runs/<RUN_ID>/concepts/dynamic_sparse/heldout_eval_report.json --split-name test`
+    This evaluates `raw_direction` by default so held-out margin metrics are comparable to the solver report.
   - `python tools/dynamic_concept_baselines.py --pairs data/runs/<RUN_ID>/mcts_pairs/pairs.test.npz --concept data/runs/<RUN_ID>/concepts/dynamic_sparse --out data/runs/<RUN_ID>/concepts/dynamic_sparse/baselines_report.json`
   - `python tools/dynamic_policy_margin.py --pairs data/runs/<RUN_ID>/mcts_pairs/pairs.test.npz --concept data/runs/<RUN_ID>/concepts/dynamic_sparse --pb models/BT4-1024x15x32h-swa-6147500-policytune-332.pb.gz --out data/runs/<RUN_ID>/concepts/dynamic_sparse/policy_margin_report.json`
   - `python tools/build_dynamic_concept_report.py --pairs data/runs/<RUN_ID>/mcts_pairs/pairs.test.npz --concept data/runs/<RUN_ID>/concepts/dynamic_sparse --out data/runs/<RUN_ID>/concepts/dynamic_sparse/report.md`
