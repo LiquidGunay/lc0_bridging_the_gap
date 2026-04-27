@@ -22,6 +22,7 @@ Implemented toward parity:
 - `lc0jax.interpretability.dynamic_baselines` and `tools/dynamic_concept_baselines.py` compare learned dynamic directions against random sparse vectors, shuffled-label projections, and optional shuffled-label sparse solves.
 - `lc0jax.interpretability.dynamic_evaluation` and `tools/evaluate_dynamic_concept.py` report held-out constraint and margin satisfaction for a learned dynamic direction on a held-out pair split. The CLI evaluates `raw_direction` by default so held-out margins are comparable to solver margins.
 - `lc0jax.interpretability.dynamic_prototypes` and `tools/select_dynamic_prototypes.py` select top-scoring dynamic concept pair rows plus random controls for future teachability curricula. Prototype selection auto-detects reversed concept runs and preserves row-aligned metadata in selected rows.
+- `lc0jax.interpretability.dynamic_teachability` and `tools/export_teachability_curriculum.py` export prototype/control selections to JSONL records with target and contrast moves for downstream student-training jobs.
 - `lc0jax.interpretability.dynamic_causal` and `tools/dynamic_policy_margin.py` measure best-vs-subpar policy-logit margin changes before and after patching a dynamic concept direction.
 - `lc0jax.interpretability.dynamic_splits` and `tools/split_dynamic_pairs.py` split dynamic `pairs.npz` files by root FEN without the fullmove counter, preserving known row-aligned arrays and scalar metadata while preventing same-position leakage across train/test.
 - `tools/pgn_to_activation_records.py` writes JSONL records with rolling `history_fens`, and `tools/dump_activations.py --records` passes those boards to LC0 encoding instead of using empty history.
@@ -51,7 +52,7 @@ Known gaps:
    The baseline tool now supports random sparse vectors, shuffled-label projections, and optional shuffled sparse solves. Run it on larger dynamic datasets and add held-out train/test splits by root position.
 
 5. Add teachability evaluation.
-   Prototype selection now exists for dynamic concepts. Next, train a small student or weaker LC0 checkpoint on selected prototypes with KL to the teacher policy and report top-1 overlap lift against random prototype curricula.
+   Prototype and curriculum export now exist for dynamic concepts. Next, train a small student or weaker LC0 checkpoint on selected prototypes with KL to the teacher policy and report top-1 overlap lift against random prototype curricula.
 
 ## GCP Compute Policy
 
@@ -78,4 +79,5 @@ Every GCP run should write outputs under `data/runs/<RUN_ID>/` and record the ma
 - 2026-04-27: Held-out dynamic split tests passed; `.venv/bin/python -m pytest -q` passed with 58 tests after adding `tools/split_dynamic_pairs.py`. Review hardening added fullmove-insensitive grouping and explicit row-aligned key handling.
 - 2026-04-27: Held-out dynamic evaluation tests passed; `.venv/bin/python -m pytest -q` passed with 62 tests after adding `tools/evaluate_dynamic_concept.py`. Review hardening made the CLI default to `raw_direction`, separated solver-pair and report-pair paths in markdown, and added explicit `--evaluation` report CLI coverage.
 - 2026-04-27: Dynamic prototype selection tests passed; `.venv/bin/python -m pytest -q` passed with 66 tests after adding `tools/select_dynamic_prototypes.py`. Review hardening added reversed-concept scoring, original-space direction-key validation, custom row metadata propagation, and explicit `--prototypes` report CLI coverage.
+- 2026-04-27: Teachability curriculum export tests passed; `.venv/bin/python -m pytest -q` passed with 70 tests after adding `tools/export_teachability_curriculum.py`.
 - 2026-04-27: Ruff could not be run because it is not installed in the current `.venv`; line lengths were checked manually for the touched Python files.

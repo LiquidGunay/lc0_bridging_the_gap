@@ -36,6 +36,7 @@ The goal is to accurately reproduce the concept discovery methodology from the S
 - [x] (2026-04-27) Added root-grouped held-out train/test splits for dynamic `pairs.npz` files.
 - [x] (2026-04-27) Added held-out dynamic direction evaluation reports.
 - [x] (2026-04-27) Added dynamic prototype and random-control selection reports.
+- [x] (2026-04-27) Added JSONL teachability curriculum export from prototype reports.
 - [ ] Add teachability filtering and random-prototype baselines.
 
 ## Surprises & Discoveries
@@ -84,6 +85,7 @@ The goal is to accurately reproduce the concept discovery methodology from the S
 - Added root-position grouped train/test splitting for dynamic rollout pairs, ignoring FEN fullmove counters so constraint satisfaction, baselines, and policy-margin checks can run on held-out positions.
 - Added explicit held-out direction evaluation reports so train/test split runs record constraint and margin satisfaction before baseline comparisons.
 - Added prototype selection reports for top-scoring dynamic concept pairs and random controls, preparing the teachability curriculum step.
+- Added teachability curriculum JSONL export for prototype and random-control rows with target/contrast moves.
 
 **Next Steps:**
 1. Scale MCTS pair extraction and flat activation dumps on GCP with larger root sets, higher node budgets, and sharded resume support.
@@ -143,6 +145,7 @@ Dynamic sparse solver example once `pairs.npz` exists:
     python tools/solve_dynamic_concepts.py --pairs data/runs/<RUN_ID>/mcts_pairs/pairs.train.npz --out data/runs/<RUN_ID>/concepts/dynamic_sparse --mode flat
     python tools/evaluate_dynamic_concept.py --pairs data/runs/<RUN_ID>/mcts_pairs/pairs.test.npz --concept data/runs/<RUN_ID>/concepts/dynamic_sparse --out data/runs/<RUN_ID>/concepts/dynamic_sparse/heldout_eval_report.json --split-name test
     python tools/select_dynamic_prototypes.py --pairs data/runs/<RUN_ID>/mcts_pairs/pairs.train.npz --concept data/runs/<RUN_ID>/concepts/dynamic_sparse --out data/runs/<RUN_ID>/concepts/dynamic_sparse/prototypes_report.json --top-k 32 --random-count 32 --split-name train
+    python tools/export_teachability_curriculum.py --prototypes data/runs/<RUN_ID>/concepts/dynamic_sparse/prototypes_report.json --out data/runs/<RUN_ID>/concepts/dynamic_sparse/teachability_curriculum.jsonl
     python tools/dynamic_concept_baselines.py --pairs data/runs/<RUN_ID>/mcts_pairs/pairs.test.npz --concept data/runs/<RUN_ID>/concepts/dynamic_sparse --out data/runs/<RUN_ID>/concepts/dynamic_sparse/baselines_report.json
     python tools/dynamic_policy_margin.py --pairs data/runs/<RUN_ID>/mcts_pairs/pairs.test.npz --concept data/runs/<RUN_ID>/concepts/dynamic_sparse --pb models/BT4-1024x15x32h-swa-6147500-policytune-332.pb.gz --out data/runs/<RUN_ID>/concepts/dynamic_sparse/policy_margin_report.json
     python tools/build_dynamic_concept_report.py --pairs data/runs/<RUN_ID>/mcts_pairs/pairs.test.npz --concept data/runs/<RUN_ID>/concepts/dynamic_sparse --out data/runs/<RUN_ID>/concepts/dynamic_sparse/report.md
