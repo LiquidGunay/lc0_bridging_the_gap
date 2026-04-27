@@ -12,6 +12,147 @@ try:
 except ImportError:  # pragma: no cover
     chess = None
 
+
+def _normalize_vector(vec: np.ndarray) -> tuple[np.ndarray, float]:
+    norm = float(np.linalg.norm(vec))
+    if norm == 0.0:
+        return vec, norm
+    return vec / norm, norm
+
+
+def solve_sparse_concept_from_differences(
+    differences: np.ndarray,
+    *,
+    c: float = 1.0,
+    margin: float = 1.0,
+    standardize: bool = True,
+    epsilon: float = 1e-6,
+    solver: str | None = None,
+):
+    """Solve the Schut-style sparse concept objective over paired differences.
+
+    ``differences`` must contain rows ``phi(s+) - phi(s-)`` or
+    ``psi(tau+) - psi(tau-)``. The optimization is:
+
+    ``min ||v||_1 + c * sum(xi)`` subject to ``differences @ v >= margin - xi``.
+    """
+    import cvxpy as cp
+
+    diff = np.asarray(differences, dtype=np.float64)
+    if diff.ndim != 2:
+        raise ValueError(f"Expected a rank-2 difference matrix, got {diff.shape}")
+    if diff.shape[0] == 0:
+        raise ValueError("At least one paired difference is required")
+
+    if standardize:
+        feature_std = diff.std(axis=0)
+        feature_std = np.where(feature_std < epsilon, 1.0, feature_std)
+        solver_diff = diff / feature_std
+    else:
+        feature_std = np.ones(diff.shape[1], dtype=np.float64)
+        solver_diff = diff
+
+    v = cp.Variable(diff.shape[1])
+    xi = cp.Variable(diff.shape[0])
+    objective = cp.Minimize(cp.norm1(v) + c * cp.sum(xi))
+    constraints = [
+        solver_diff @ v >= margin - xi,
+        xi >= 0,
+    ]
+    prob = cp.Problem(objective, constraints)
+    prob.solve(solver=solver or cp.SCS, verbose=False)
+
+    if v.value is None:
+        raise RuntimeError("cvxpy could not find a sparse concept solution")
+
+    standardized_raw = np.asarray(v.value, dtype=np.float64)
+    raw = standardized_raw / feature_std
+    direction, norm = _normalize_vector(raw)
+    standardized_direction, standardized_norm = _normalize_vector(standardized_raw)
+    margins = diff @ raw
+    return {
+        "direction": direction,
+        "raw_direction": raw,
+        "standardized_direction": standardized_direction,
+        "standardized_raw_direction": standardized_raw,
+        "feature_std": feature_std,
+        "norm": norm,
+        "standardized_norm": standardized_norm,
+        "constraint_satisfaction": float(np.mean(margins > 0)),
+        "margin_satisfaction": float(np.mean(margins >= margin - epsilon)),
+        "margins": margins,
+        "objective": float(prob.value) if prob.value is not None else None,
+        "status": prob.status,
+        "method": "sparse_cvxpy",
+    }
+
+
+def aggregate_trajectory(
+    activations: np.ndarray,
+    *,
+    mode: str = "flat",
+    index_mode: str = "both",
+) -> np.ndarray:
+    """Aggregate a rollout's activation sequence into one trajectory vector.
+
+    ``activations`` can be ``[T, 64, d]`` token activations or already-projected
+    ``[T, d]`` embeddings. ``index_mode`` follows the Schut paper's distinction
+    between both-player and single-player rollout indexing.
+    """
+    arr = np.asarray(activations)
+    if index_mode == "both":
+        pass
+    elif index_mode == "single_even":
+        arr = arr[::2]
+    elif index_mode == "single_odd":
+        arr = arr[1::2]
+    else:
+        raise ValueError(f"Unsupported index_mode: {index_mode}")
+    if arr.shape[0] == 0:
+        raise ValueError("Trajectory aggregation selected zero positions")
+
+    if arr.ndim == 3:
+        if arr.shape[1] != 64:
+            raise ValueError(f"Expected token activations shaped [T, 64, d], got {arr.shape}")
+        if mode == "flat":
+            per_position = arr.reshape((arr.shape[0], -1))
+        elif mode == "mean":
+            per_position = arr.mean(axis=1)
+        else:
+            raise ValueError(f"Unsupported trajectory activation mode: {mode}")
+    elif arr.ndim == 2:
+        per_position = arr
+    else:
+        raise ValueError(f"Expected rank-2 or rank-3 trajectory activations, got {arr.shape}")
+    return per_position.mean(axis=0)
+
+
+def dynamic_rollout_differences(
+    optimal_rollouts: np.ndarray,
+    subpar_rollouts: np.ndarray,
+    *,
+    mode: str = "flat",
+    index_mode: str = "both",
+) -> np.ndarray:
+    """Build ``psi(tau+) - psi(tau-)`` rows from stored rollout activations."""
+    optimal = np.asarray(optimal_rollouts)
+    subpar = np.asarray(subpar_rollouts)
+    if optimal.shape[0] != subpar.shape[0]:
+        raise ValueError(
+            f"Optimal/subpar rollout count mismatch: {optimal.shape[0]} vs {subpar.shape[0]}"
+        )
+
+    rows = []
+    for idx in range(optimal.shape[0]):
+        pos = aggregate_trajectory(optimal[idx], mode=mode, index_mode=index_mode)
+        neg_rollouts = subpar[idx]
+        if neg_rollouts.ndim == optimal[idx].ndim:
+            neg_rollouts = neg_rollouts[None, ...]
+        for neg in neg_rollouts:
+            rows.append(pos - aggregate_trajectory(neg, mode=mode, index_mode=index_mode))
+    return np.asarray(rows)
+
+
 def discover_concepts(
     embeddings_a,
     embeddings_b,
@@ -19,6 +160,7 @@ def discover_concepts(
     method: str = "mean_diff",
     shrinkage: float = 1e-3,
     k: int = 8,
+    standardize: bool = True,
 ):
     """Return a concept direction and summary stats."""
     emb_a = np.asarray(embeddings_a)
@@ -48,8 +190,6 @@ def discover_concepts(
         vecs, scores = _cluster_diff_directions(emb_a, emb_b, k=k)
         vec = vecs
     elif method == "svm_cvxpy":
-        import cvxpy as cp
-
         # Subsample to keep cvxpy fast, random pairing
         n_samples = min(len(emb_a), len(emb_b), 2000)
         rng = np.random.default_rng(42)
@@ -58,26 +198,19 @@ def discover_concepts(
 
         X_pos = emb_a[idx_a]
         X_neg = emb_b[idx_b]
-
-        d = X_pos.shape[1]
-        v = cp.Variable(d)
-        xi = cp.Variable(n_samples)
-
-        # L1 penalized SVM with soft-margin to avoid infeasibility
-        C = 1.0
-        objective = cp.Minimize(cp.norm1(v) + C * cp.sum(xi))
-        constraints = [
-            (X_pos - X_neg) @ v >= 1 - xi,
-            xi >= 0
-        ]
-
-        prob = cp.Problem(objective, constraints)
-        prob.solve(solver=cp.SCS)
-
-        if v.value is None:
-            raise RuntimeError("cvxpy could not find a solution for svm_cvxpy")
-
-        vec = v.value
+        sparse = solve_sparse_concept_from_differences(
+            X_pos - X_neg,
+            c=1.0,
+            margin=1.0,
+            standardize=standardize,
+        )
+        vec = sparse["raw_direction"]
+        scores = {
+            "constraint_satisfaction": sparse["constraint_satisfaction"],
+            "margin_satisfaction": sparse["margin_satisfaction"],
+            "objective": sparse["objective"],
+            "status": sparse["status"],
+        }
     else:
         raise ValueError(f"Unsupported method: {method}")
 
@@ -124,7 +257,9 @@ def _cluster_diff_directions(emb_a: np.ndarray, emb_b: np.ndarray, *, k: int = 8
     emb_a = np.asarray(emb_a)
     emb_b = np.asarray(emb_b)
     X = np.concatenate([emb_a, emb_b], axis=0)
-    labels = np.concatenate([np.zeros(len(emb_a), dtype=np.int32), np.ones(len(emb_b), dtype=np.int32)])
+    labels = np.concatenate(
+        [np.zeros(len(emb_a), dtype=np.int32), np.ones(len(emb_b), dtype=np.int32)]
+    )
 
     km = MiniBatchKMeans(n_clusters=k, batch_size=4096, n_init=5, random_state=0)
     assignments = km.fit_predict(X)

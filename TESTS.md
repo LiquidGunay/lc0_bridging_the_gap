@@ -15,6 +15,7 @@ This document explains why each test exists and what failure it is meant to catc
 
 - `tests/test_datasets.py` verifies the Lichess index parsing helpers and time-class classification (based on base + 40 * increment).
 - The stream-filter tests ensure multi-class filtering works (e.g., rapid + classical) and that rating/time-control filters are applied consistently. These tests prevent silent mis-filtering of human datasets.
+- The activation-record tests verify that PGN conversion preserves rolling `history_fens` metadata for LC0 history-aware encoding, and that record JSONL can be filtered back to a selected FEN list after evaluation or disagreement filters.
 - The FEN filter tests cover min-ply and phase-based filtering so we can exclude opening positions without breaking downstream activation dumps.
 - Broadcast downloads are exercised via `tools/download_data.py lichess-broadcasts` (no unit test yet because it depends on network access).
 - Puzzle downloads and the LC0 disagreement filter are not unit-tested; validate via the CLI tools because they require large files and an LC0 binary.
@@ -22,6 +23,12 @@ This document explains why each test exists and what failure it is meant to catc
 ## Concept discovery
 
 - `tests/test_concepts.py` verifies shape and score outputs for covariance-shift and clustering concept methods so we catch regressions in multi-vector outputs early.
+- The sparse CVXPY paired-difference test checks the Schut-style objective directly: a positive-vs-negative difference matrix should produce a sparse direction with positive held-in constraints.
+- The dynamic rollout-difference test checks the first non-search piece of dynamic concept discovery: stored optimal/subpar trajectories can be aggregated with both-player or single-player indexing before solving the sparse objective.
+- `tests/test_mcts_rollouts.py` checks PV replay, side-to-move centipawn conversion, and serialization of python-chess analysis info without launching LC0.
+- `tests/test_pair_builders.py` checks that rollout-pair JSONL plus activation shards materialize into the `differences` matrix consumed by the dynamic sparse solver.
+- `tests/test_activations.py` checks that captured BT4 token activations can be reshaped to `[batch, 64, channels]` and projected either by mean pooling or by flattening square-local tokens.
+- `tests/test_novelty.py` checks the SVD reconstruction novelty metric used to compare machine-game and human-game activation bases.
 - The causal validation tool (`tools/causal_validate.py`) is intentionally not exercised in unit tests because it requires full model weights and GPU/CPU runtimes; validate it via the generated `data/concept_report.md` outputs instead.
 
 ## Training chunk parsing

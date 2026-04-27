@@ -24,6 +24,8 @@ The paper explicitly states:
 ### Conclusion
 Our current implementation deviates significantly from the exact paper methodology. While methods like `whitened_mean_diff` (LDA) and `mean_diff` are fast and widely used in mechanistic interpretability, they are L2-based and do not naturally yield the highly sparse, L1-penalized concept vectors the paper claims to discover.
 
+Update 2026-04-27: `svm_cvxpy` is now present, but this only covers a static paired-difference baseline. The deeper gap is dynamic concept discovery from LC0 MCTS optimal rollouts contrasted with subpar rollouts, followed by novelty and teachability filters. See `REPO_AUDIT_AND_NEXT_STEPS.md` and `IMPLEMENTATION_STATUS_AND_NEXT_WORK.md` for the current status.
+
 ## Required Actions
 1. **Add `svm_cvxpy` (or L1 Linear SVM) method** to `lc0jax/interpretability/concepts.py`.
    - The method should use `cvxpy` or an L1-regularized `LinearSVC` from `scikit-learn` to solve the exact hard-margin (or soft-margin) constraint formulated in the paper.

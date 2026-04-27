@@ -6,11 +6,24 @@ import numpy as np
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--concepts", required=True, help="Path to discovered concept_direction.npz")
-    parser.add_argument("--activations", required=True, help="Path to puzzle activations .npz or directory")
+    parser.add_argument(
+        "--concepts",
+        required=True,
+        help="Path to discovered concept_direction.npz",
+    )
+    parser.add_argument(
+        "--activations",
+        required=True,
+        help="Path to puzzle activations .npz or directory",
+    )
     parser.add_argument("--tags", required=True, help="Path to puzzle tags .jsonl file")
     parser.add_argument("--out", required=True, help="Output JSON report path")
-    parser.add_argument("--top-tags", type=int, default=5, help="Number of top tags to report per concept")
+    parser.add_argument(
+        "--top-tags",
+        type=int,
+        default=5,
+        help="Number of top tags to report per concept",
+    )
     args = parser.parse_args()
 
     # Load concept directions
@@ -27,7 +40,10 @@ def main() -> int:
     activations_list = []
     for file in files:
         data = np.load(file, allow_pickle=True)
-        activations_list.append(data["embeddings"])
+        embeddings = data["embeddings"]
+        if embeddings.ndim == 3:
+            embeddings = embeddings.reshape((embeddings.shape[0], -1))
+        activations_list.append(embeddings)
 
     if not activations_list:
         raise RuntimeError("No activations found")
@@ -41,7 +57,11 @@ def main() -> int:
                 puzzle_tags.append(json.loads(line)["Themes"])
 
     if len(activations) != len(puzzle_tags):
-        print(f"Warning: Number of activations ({len(activations)}) does not match number of tags ({len(puzzle_tags)}). Truncating to the minimum.")
+        print(
+            "Warning: Number of activations "
+            f"({len(activations)}) does not match number of tags "
+            f"({len(puzzle_tags)}). Truncating to the minimum."
+        )
         min_len = min(len(activations), len(puzzle_tags))
         activations = activations[:min_len]
         puzzle_tags = puzzle_tags[:min_len]
@@ -76,8 +96,14 @@ def main() -> int:
         bottom_tags = sorted_tags[-args.top_tags:][::-1] # Lowest scoring tags
 
         report[f"concept_{concept_idx}"] = {
-            "top_tags": [{"tag": t, "avg_score": s, "count": len(tag_scores[t])} for t, s in top_tags],
-            "bottom_tags": [{"tag": t, "avg_score": s, "count": len(tag_scores[t])} for t, s in bottom_tags]
+            "top_tags": [
+                {"tag": t, "avg_score": s, "count": len(tag_scores[t])}
+                for t, s in top_tags
+            ],
+            "bottom_tags": [
+                {"tag": t, "avg_score": s, "count": len(tag_scores[t])}
+                for t, s in bottom_tags
+            ],
         }
 
     with open(args.out, "w", encoding="utf-8") as f:

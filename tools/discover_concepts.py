@@ -21,7 +21,17 @@ def main() -> int:
     parser.add_argument("--method", default="svm_cvxpy")
     parser.add_argument("--top-k", type=int, default=20)
     parser.add_argument("--max-samples", type=int, default=None)
-    parser.add_argument("--k", type=int, default=8, help="Number of directions for multi-vector methods")
+    parser.add_argument(
+        "--k",
+        type=int,
+        default=8,
+        help="Number of directions for multi-vector methods",
+    )
+    parser.add_argument(
+        "--no-standardize",
+        action="store_true",
+        help="Disable feature scaling for the CVXPY sparse solver.",
+    )
     parser.add_argument("--patch", action="store_true")
     parser.add_argument("--pb", default=None)
     parser.add_argument("--layer", default="trunk")
@@ -40,6 +50,8 @@ def main() -> int:
         for file in files:
             data = np.load(file, allow_pickle=True)
             emb = data["embeddings"]
+            if emb.ndim == 3:
+                emb = emb.reshape((emb.shape[0], -1))
             embeddings.append(emb)
             if "fens" in data:
                 fens.extend(data["fens"].tolist())
@@ -55,7 +67,13 @@ def main() -> int:
     emb_a, fens_a = load_embeddings(args.embeddings_a, args.max_samples)
     emb_b, fens_b = load_embeddings(args.embeddings_b, args.max_samples)
 
-    result = discover_concepts(emb_a, emb_b, method=args.method, k=args.k)
+    result = discover_concepts(
+        emb_a,
+        emb_b,
+        method=args.method,
+        k=args.k,
+        standardize=not args.no_standardize,
+    )
     direction = result["direction"]
     np.savez_compressed(out_dir / "concept_direction.npz", direction=direction)
 
@@ -102,7 +120,11 @@ def main() -> int:
         "vectors": proto_info,
     }
     if result.get("scores") is not None:
-        report["scores"] = np.asarray(result["scores"]).tolist()
+        scores = result["scores"]
+        if isinstance(scores, dict):
+            report["scores"] = scores
+        else:
+            report["scores"] = np.asarray(scores).tolist()
 
     if args.patch:
         if args.pb is None:
@@ -120,7 +142,13 @@ def main() -> int:
             if proto_key in proto_info and proto_info[proto_key]["top_a"]:
                 sample_fen = fens_a[proto_info[proto_key]["top_a"][0]] if fens_a else None
             if sample_fen:
-                delta = patch_activations(params, sample_fen, vec, alpha=args.alpha, layer=args.layer)
+                delta = patch_activations(
+                    params,
+                    sample_fen,
+                    vec,
+                    alpha=args.alpha,
+                    layer=args.layer,
+                )
                 patch_reports.append(
                     {
                         "vector": idx,

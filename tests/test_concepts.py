@@ -1,6 +1,10 @@
 import numpy as np
 
-from lc0jax.interpretability.concepts import discover_concepts
+from lc0jax.interpretability.concepts import (
+    discover_concepts,
+    dynamic_rollout_differences,
+    solve_sparse_concept_from_differences,
+)
 
 
 def test_cov_shift_shapes():
@@ -25,3 +29,27 @@ def test_cluster_diff_shapes():
     scores = result["scores"]
     assert scores is not None
     assert len(scores) == 4
+
+
+def test_sparse_concept_from_differences_recovers_positive_margin():
+    differences = np.tile(np.array([2.0, 0.0, 0.0]), (8, 1))
+    result = solve_sparse_concept_from_differences(differences, standardize=False)
+    assert result["direction"][0] > 0.99
+    assert result["constraint_satisfaction"] == 1.0
+    assert result["margin_satisfaction"] == 1.0
+
+
+def test_dynamic_rollout_differences_flat_and_single_even():
+    optimal = np.zeros((2, 3, 64, 2), dtype=np.float32)
+    subpar = np.zeros((2, 1, 3, 64, 2), dtype=np.float32)
+    optimal[:, 0, :, 0] = 2.0
+    optimal[:, 1, :, 0] = 100.0
+    differences = dynamic_rollout_differences(
+        optimal,
+        subpar,
+        mode="mean",
+        index_mode="single_even",
+    )
+    assert differences.shape == (2, 2)
+    np.testing.assert_allclose(differences[:, 0], 1.0)
+    np.testing.assert_allclose(differences[:, 1], 0.0)
