@@ -30,6 +30,8 @@ The goal is to accurately reproduce the concept discovery methodology from the S
 - [x] (2026-04-27) Updated `tools/run_full_pipeline.sh` to use history-aware human activation records by default when broadcast PGNs are available.
 - [x] (2026-04-27) Ran the first small GCP dynamic-concept smoke pipeline from LC0 MultiPV pairs through flat activation dump, `pairs.npz` materialization, sparse solve, and novelty report under `data/runs/gcp_dynamic_smoke_20260427`.
 - [x] (2026-04-27) Re-ran the GCP dynamic smoke with history-aware trajectory records under `data/runs/gcp_dynamic_smoke_records_20260427`.
+- [x] (2026-04-27) Added dynamic concept markdown report cards from `pairs.npz`, solver reports, and novelty reports.
+- [x] (2026-04-27) Added dynamic random/shuffled baseline summaries for learned rollout concept directions.
 - [ ] Add teachability filtering and random-prototype baselines.
 
 ## Surprises & Discoveries
@@ -70,6 +72,8 @@ The goal is to accurately reproduce the concept discovery methodology from the S
 - Validated the entire pipeline locally on a GCP Spot VM instance (`pipeline-vm`), achieving an end-to-end successful run (data extraction -> MCTS evaluation filter -> JAX activation dump -> SVM concept discovery -> Puzzle concept mapping).
 - Added the first dynamic-parity infrastructure: unpooled activation storage options, paired-difference sparse solving, LC0 MultiPV rollout-pair extraction, pair materialization, dynamic sparse solving, and SVD novelty curves.
 - Validated the corrected dynamic path on GCP with the history-aware smoke run `data/runs/gcp_dynamic_smoke_records_20260427`.
+- Added dynamic report-card generation for root FENs, best/subpar moves, PVs, scores, solver stats, pair materialization metadata, and novelty summaries.
+- Added random sparse, shuffled-label, and optional shuffled-solve baselines for dynamic concept runs.
 
 **Next Steps:**
 1. Scale MCTS pair extraction and flat activation dumps on GCP with larger root sets, higher node budgets, and sharded resume support.
@@ -126,6 +130,8 @@ Dynamic sparse solver example once `pairs.npz` exists:
     cd /home/ubuntu/schutpaper
     python tools/materialize_mcts_pairs.py --pairs-jsonl data/runs/<RUN_ID>/mcts_pairs/pairs.jsonl --activations data/runs/<RUN_ID>/activations/trajectory_flat --out data/runs/<RUN_ID>/mcts_pairs/pairs.npz --mode flat
     python tools/solve_dynamic_concepts.py --pairs data/runs/<RUN_ID>/mcts_pairs/pairs.npz --out data/runs/<RUN_ID>/concepts/dynamic_sparse --mode flat
+    python tools/dynamic_concept_baselines.py --pairs data/runs/<RUN_ID>/mcts_pairs/pairs.npz --concept data/runs/<RUN_ID>/concepts/dynamic_sparse --out data/runs/<RUN_ID>/concepts/dynamic_sparse/baselines_report.json
+    python tools/build_dynamic_concept_report.py --pairs data/runs/<RUN_ID>/mcts_pairs/pairs.npz --concept data/runs/<RUN_ID>/concepts/dynamic_sparse --out data/runs/<RUN_ID>/concepts/dynamic_sparse/report.md
 
 Novelty filter example:
 

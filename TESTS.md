@@ -27,6 +27,9 @@ This document explains why each test exists and what failure it is meant to catc
 - The dynamic rollout-difference test checks the first non-search piece of dynamic concept discovery: stored optimal/subpar trajectories can be aggregated with both-player or single-player indexing before solving the sparse objective.
 - `tests/test_mcts_rollouts.py` checks PV replay, side-to-move centipawn conversion, and serialization of python-chess analysis info without launching LC0.
 - `tests/test_pair_builders.py` checks that rollout-pair JSONL plus activation shards materialize into the `differences` matrix consumed by the dynamic sparse solver.
+- `tests/test_build_mcts_pairs.py` checks that MCTS pair extraction fails fast by default on expected per-position errors and only skips them when `--skip-errors` is explicit.
+- `tests/test_dynamic_reports.py` checks that dynamic report cards include solver status, pair materialization metadata, novelty summaries, and best/subpar PV examples.
+- `tests/test_dynamic_baselines.py` checks constraint-satisfaction metrics plus random sparse and shuffled-label baseline summaries.
 - `tests/test_activations.py` checks that captured BT4 token activations can be reshaped to `[batch, 64, channels]` and projected either by mean pooling or by flattening square-local tokens.
 - `tests/test_novelty.py` checks the SVD reconstruction novelty metric used to compare machine-game and human-game activation bases.
 - The causal validation tool (`tools/causal_validate.py`) is intentionally not exercised in unit tests because it requires full model weights and GPU/CPU runtimes; validate it via the generated `data/concept_report.md` outputs instead.
