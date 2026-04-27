@@ -7,12 +7,16 @@ from pathlib import Path
 import numpy as np
 
 
-def load_concept_direction(path: str | Path) -> np.ndarray:
+def load_concept_direction(
+    path: str | Path,
+    *,
+    key: str = "direction",
+) -> np.ndarray:
     """Load a single dynamic concept direction from a concept dir or NPZ file."""
     path = Path(path)
     concept_file = path / "concept_direction.npz" if path.is_dir() else path
     data = np.load(concept_file, allow_pickle=True)
-    direction = data["direction"]
+    direction = data[key]
     if direction.ndim == 2:
         if direction.shape[1] != 1:
             raise ValueError("Expected exactly one concept direction")

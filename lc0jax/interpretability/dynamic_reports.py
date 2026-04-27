@@ -130,6 +130,7 @@ def _evaluation_lines(evaluation_report: dict[str, Any] | None) -> list[str]:
         f"- split: {evaluation_report.get('split', 'n/a')}",
         f"- samples: {evaluation_report.get('num_pairs', 'n/a')}",
         f"- dimension: {evaluation_report.get('dimension', 'n/a')}",
+        f"- direction key: {evaluation_report.get('direction_key', 'n/a')}",
         f"- nonzero features: {evaluation_report.get('nonzero_features', 'n/a')}",
         (
             "- constraint satisfaction: "
@@ -216,7 +217,8 @@ def build_dynamic_concept_report(
         "## Solver",
         "",
         f"- concept dir: `{concept_dir}`",
-        f"- pairs: `{pairs_path}`",
+        f"- solver pairs: `{solver_report.get('pairs', 'n/a')}`",
+        f"- report pairs: `{pairs_path}`",
         f"- method: {solver_report.get('method', 'unknown')}",
         f"- status: {solver_report.get('status', 'unknown')}",
         f"- mode: {solver_report.get('mode', 'n/a')}",

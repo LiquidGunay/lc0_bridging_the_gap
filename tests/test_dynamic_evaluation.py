@@ -35,6 +35,7 @@ def test_evaluate_dynamic_concept_cli_writes_report(tmp_path, monkeypatch):
     np.savez_compressed(
         concept / "concept_direction.npz",
         direction=np.asarray([1.0, 0.0], dtype=np.float32),
+        raw_direction=np.asarray([0.25, 0.0], dtype=np.float32),
     )
     out = tmp_path / "heldout_eval_report.json"
 
@@ -61,5 +62,7 @@ def test_evaluate_dynamic_concept_cli_writes_report(tmp_path, monkeypatch):
     assert report["pairs"] == str(pairs)
     assert report["concept"] == str(concept)
     assert report["split"] == "test"
+    assert report["direction_key"] == "raw_direction"
     assert report["evaluation"]["constraint_satisfaction"] == 0.5
-    assert report["evaluation"]["margin_satisfaction"] == 0.5
+    assert report["evaluation"]["margin_satisfaction"] == 0.0
+    assert report["evaluation"]["max_score"] == 0.5

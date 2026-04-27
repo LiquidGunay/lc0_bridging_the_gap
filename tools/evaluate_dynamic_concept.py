@@ -20,13 +20,20 @@ def main() -> int:
     parser.add_argument("--out", required=True, help="Output heldout_eval_report.json path.")
     parser.add_argument("--margin", type=float, default=1.0)
     parser.add_argument("--split-name", default="heldout")
+    parser.add_argument(
+        "--direction-key",
+        default="raw_direction",
+        help="Direction array to evaluate from concept_direction.npz.",
+    )
     args = parser.parse_args()
 
+    direction = load_concept_direction(args.concept, key=args.direction_key)
     report = dynamic_evaluation_report(
         load_pair_differences(args.pairs),
-        load_concept_direction(args.concept),
+        direction,
         margin=args.margin,
         split_name=args.split_name,
+        direction_key=args.direction_key,
     )
     report["pairs"] = args.pairs
     report["concept"] = args.concept

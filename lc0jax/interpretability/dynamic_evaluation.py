@@ -16,6 +16,7 @@ def dynamic_evaluation_report(
     margin: float = 1.0,
     split_name: str = "heldout",
     nonzero_threshold: float = 1e-8,
+    direction_key: str = "raw_direction",
 ) -> dict[str, Any]:
     """Evaluate a learned dynamic direction on one pair split."""
     differences = np.asarray(differences, dtype=np.float64)
@@ -28,6 +29,7 @@ def dynamic_evaluation_report(
         "num_pairs": int(differences.shape[0]),
         "dimension": int(differences.shape[1]),
         "margin": float(margin),
+        "direction_key": direction_key,
         "nonzero_features": int(nonzero),
         "evaluation": metrics,
     }
