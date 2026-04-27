@@ -11,6 +11,10 @@ def _prototypes_report():
         "split": "train",
         "direction_key": "direction",
         "reverse": True,
+        "pairs": "pairs.train.npz",
+        "concept": "concept_dir",
+        "seed": 3,
+        "score_mode": "auto",
         "prototypes": [
             {
                 "rank": 0,
@@ -46,6 +50,12 @@ def test_teachability_curriculum_records_exports_prototypes_and_controls():
     assert records[0]["target_move"] == "e2e4"
     assert records[0]["contrast_move"] == "d2d4"
     assert records[0]["reverse"] is True
+    assert records[0]["provenance"] == {
+        "pairs": "pairs.train.npz",
+        "concept": "concept_dir",
+        "seed": 3,
+        "score_mode": "auto",
+    }
     assert records[0]["metadata"]["source_ids"] == "game-a"
     assert records[1]["target_move"] == "g1f3"
 
@@ -66,6 +76,14 @@ def test_teachability_curriculum_records_rejects_negative_limits():
         teachability_curriculum_records(_prototypes_report(), max_prototypes=-1)
     with pytest.raises(ValueError, match="max_controls"):
         teachability_curriculum_records(_prototypes_report(), max_controls=-1)
+
+
+def test_teachability_curriculum_records_rejects_malformed_rows():
+    report = _prototypes_report()
+    del report["prototypes"][0]["best_moves"]
+
+    with pytest.raises(ValueError, match="best_moves"):
+        teachability_curriculum_records(report)
 
 
 def test_export_teachability_curriculum_cli_writes_jsonl(tmp_path, monkeypatch):
@@ -92,4 +110,26 @@ def test_export_teachability_curriculum_cli_writes_jsonl(tmp_path, monkeypatch):
     rows = [json.loads(line) for line in out.read_text(encoding="utf-8").splitlines()]
     assert [row["group"] for row in rows] == ["prototype", "random_control"]
     assert rows[0]["root_fen"] == "root-a"
+    assert rows[0]["provenance"]["pairs"] == "pairs.train.npz"
     assert rows[1]["metadata"]["source_ids"] == "game-b"
+
+
+def test_export_teachability_curriculum_cli_rejects_negative_limits(tmp_path, monkeypatch):
+    prototypes = tmp_path / "prototypes_report.json"
+    prototypes.write_text(json.dumps(_prototypes_report()), encoding="utf-8")
+    out = tmp_path / "curriculum.jsonl"
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "export_teachability_curriculum.py",
+            "--prototypes",
+            str(prototypes),
+            "--out",
+            str(out),
+            "--max-prototypes",
+            "-1",
+        ],
+    )
+
+    with pytest.raises(ValueError, match="max_prototypes"):
+        export_teachability_curriculum.main()

@@ -9,6 +9,13 @@ def _copy_row_metadata(row: dict[str, Any]) -> dict[str, Any]:
     return {key: value for key, value in row.items() if key not in {"rank"}}
 
 
+def _required_row_value(row: dict[str, Any], key: str, *, group: str) -> Any:
+    value = row.get(key)
+    if value in (None, ""):
+        raise ValueError(f"{group} row missing required key '{key}'")
+    return value
+
+
 def _curriculum_record(
     row: dict[str, Any],
     *,
@@ -16,19 +23,21 @@ def _curriculum_record(
     split: str,
     direction_key: str,
     reverse: bool,
+    provenance: dict[str, Any],
 ) -> dict[str, Any]:
     record = {
         "group": group,
         "split": split,
-        "rank": int(row.get("rank", 0)),
-        "pair_index": int(row.get("index", -1)),
-        "score": float(row.get("score", 0.0)),
-        "projection_score": float(row.get("projection_score", row.get("score", 0.0))),
+        "rank": int(_required_row_value(row, "rank", group=group)),
+        "pair_index": int(_required_row_value(row, "index", group=group)),
+        "score": float(_required_row_value(row, "score", group=group)),
+        "projection_score": float(row.get("projection_score", row["score"])),
         "direction_key": direction_key,
         "reverse": bool(reverse),
-        "root_fen": row.get("root_fens", ""),
-        "target_move": row.get("best_moves", ""),
-        "contrast_move": row.get("subpar_moves", ""),
+        "root_fen": _required_row_value(row, "root_fens", group=group),
+        "target_move": _required_row_value(row, "best_moves", group=group),
+        "contrast_move": _required_row_value(row, "subpar_moves", group=group),
+        "provenance": provenance,
         "metadata": _copy_row_metadata(row),
     }
     return record
@@ -49,6 +58,11 @@ def teachability_curriculum_records(
     split = str(prototypes_report.get("split", "train"))
     direction_key = str(prototypes_report.get("direction_key", "direction"))
     reverse = bool(prototypes_report.get("reverse", False))
+    provenance = {
+        key: prototypes_report[key]
+        for key in ("pairs", "concept", "seed", "score_mode")
+        if key in prototypes_report
+    }
     prototypes = list(prototypes_report.get("prototypes", []))
     controls = list(prototypes_report.get("random_controls", []))
     if max_prototypes is not None:
@@ -63,6 +77,7 @@ def teachability_curriculum_records(
             split=split,
             direction_key=direction_key,
             reverse=reverse,
+            provenance=provenance,
         )
         for row in prototypes
     ]
@@ -73,6 +88,7 @@ def teachability_curriculum_records(
             split=split,
             direction_key=direction_key,
             reverse=reverse,
+            provenance=provenance,
         )
         for row in controls
     )
