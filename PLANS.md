@@ -67,6 +67,7 @@ The goal is to build an open-source, reproducible pipeline that can load a real 
 - [x] (2026-04-27 17:00Z) Added dynamic prototype and random-control selection reports as teachability curriculum inputs.
 - [x] (2026-04-27 17:15Z) Added JSONL teachability curriculum export from dynamic prototype/control reports.
 - [x] (2026-04-27 18:50Z) Ran larger GCP dynamic validation `data/runs/gcp_dynamic_large_20260427_174945` on `pipeline-vm`: 800 LC0 nodes, MultiPV 4, 40 kept rollout-pair records from 49 scanned roots, 948 history-aware trajectory records, 93 materialized dynamic differences, grouped 72 train / 21 held-out split, and completed a mean-pooled end-to-end report after identifying flat sparse solve runtime as the next bottleneck.
+- [x] (2026-04-27 19:10Z) Added a screened flat dynamic solver path (`tools/solve_dynamic_concepts.py --max-features`) that preserves the exact sparse CVXPY objective on a deterministic feature subset and expands directions back to the original feature dimension; validated it on the preserved `(93, 65536)` GCP flat pairs with a 2048-feature screen.
 - [ ] Add teachability evaluation with a weaker LC0 checkpoint or student network and random-prototype baselines.
 
 ## Surprises & Discoveries
@@ -117,6 +118,8 @@ The goal is to build an open-source, reproducible pipeline that can load a real 
   Evidence: `gcp_dynamic_large_20260427_174945` materialized flat pairs with shape `(93, 65536)` and split them 72/21, but `tools/solve_dynamic_concepts.py --mode flat` did not finish in the practical validation window. Re-materializing the same rollout pairs with `--mode mean` produced `(93, 1024)` differences and completed solve/evaluation/baselines/prototypes/curriculum/policy-margin reporting successfully.
 - Observation: The first larger mean-pooled causal patch run validated plumbing but not causal strength.
   Evidence: `dynamic_sparse_mean/policy_margin_report.json` reported `mean_delta_margin=-2.421438694000244e-08`, `top1_change_rate=0.0`, and `skipped_rows=0` on 16 held-out rows at `alpha=0.1`.
+- Observation: Deterministic feature screening makes the first larger flat validation tractable, but causal patch effects are still tiny at the tested patch scale.
+  Evidence: `gcp_dynamic_large_20260427_174945/concepts/dynamic_sparse_screened_2048` solved the `(72, 65536)` train split with a 2048-feature screen and status `optimal`, then reported held-out constraint satisfaction `0.762`, held-out margin satisfaction `0.190`, and policy-margin `mean_delta_margin=-4.4330954551696777e-07` at `alpha=0.1`.
 
 ## Decision Log
 
@@ -244,11 +247,14 @@ The goal is to build an open-source, reproducible pipeline that can load a real 
 - Decision: Preserve flat dynamic pair artifacts but use a mean-pooled fallback to complete the first larger end-to-end validation when the direct flat CVXPY/SCS solve exceeded the practical runtime window.
   Rationale: The larger run still needed a complete train/test/evaluation/prototype/curriculum/policy-margin artifact, and the stalled flat solve exposed a concrete implementation bottleneck for the next cycle.
   Date/Author: 2026-04-27 / Codex
+- Decision: Add deterministic feature screening as the first scalable flat solver path while keeping the exact unscreened sparse CVXPY objective available.
+  Rationale: The Schut-style L1 objective remains unchanged on the selected support, outputs retain the original feature dimension for evaluation and patching, and selected feature indices/scores are stored for reproducibility.
+  Date/Author: 2026-04-27 / Codex
 
 ## Outcomes & Retrospective
 
 
-- The LC0/JAX substrate and static concept baseline are implemented, but the repository is not yet Schut-faithful. As of 2026-04-27, the initial parity infrastructure now includes square-aware activation modes, a reusable sparse paired-difference solver, LC0 MCTS rollout pairs, history-aware trajectory activations, root-grouped held-out splits, held-out direction evaluation, prototype/control selection, curriculum export, dynamic report cards, baselines, policy-margin patch reports, and the machine-vs-human SVD novelty metric. A larger GCP validation has now produced 40 LC0 rollout-pair records and a complete mean-pooled held-out report; the immediate technical blocker is making the exact flat sparse solve scale beyond smoke sizes, followed by stronger causal patch calibration and teachability filtering.
+- The LC0/JAX substrate and static concept baseline are implemented, but the repository is not yet Schut-faithful. As of 2026-04-27, the initial parity infrastructure now includes square-aware activation modes, a reusable sparse paired-difference solver, screened flat sparse solves, LC0 MCTS rollout pairs, history-aware trajectory activations, root-grouped held-out splits, held-out direction evaluation, prototype/control selection, curriculum export, dynamic report cards, baselines, policy-margin patch reports, and the machine-vs-human SVD novelty metric. A larger GCP validation has now produced 40 LC0 rollout-pair records, a complete mean-pooled held-out report, and a complete screened-flat held-out report; the immediate technical blockers are feature-screening scale comparisons, stronger causal patch calibration, and teachability filtering.
 
 ## Context and Orientation
 

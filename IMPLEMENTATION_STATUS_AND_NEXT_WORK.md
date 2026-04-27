@@ -13,8 +13,9 @@ Implemented toward parity:
 - Activation dumps now expose `--activation-mode mean|flat`. `mean` preserves the prior pooled behavior; `flat` preserves square-local geometry by flattening the 64 board-token activations.
 - Activation dumps can optionally store raw `[N, 64, channels]` token activations with `--store-token-activations` and policy logits with `--store-policy-logits`.
 - `lc0jax.interpretability.concepts.solve_sparse_concept_from_differences` implements the L1 sparse soft-margin objective over paired differences.
+- `lc0jax.interpretability.concepts.solve_screened_sparse_concept_from_differences` adds deterministic feature screening for large flat runs. It solves the same CVXPY objective in a selected feature subspace and expands vectors back to the original feature dimension for downstream evaluation and patching.
 - `lc0jax.interpretability.concepts.dynamic_rollout_differences` aggregates stored optimal/subpar rollout activations into `psi(tau+) - psi(tau-)` rows.
-- `tools/solve_dynamic_concepts.py` solves active or reversed-sign sparse concepts from a stored rollout-pair `.npz` file.
+- `tools/solve_dynamic_concepts.py` solves active or reversed-sign sparse concepts from a stored rollout-pair `.npz` file. Use `--max-features` for screened large-flat solves; selected feature indices and scores are stored in `concept_direction.npz`.
 - `lc0jax.interpretability.novelty` and `tools/filter_novel_concepts.py` implement the Schut-style SVD reconstruction comparison between machine and human activation bases.
 - `lc0jax.interpretability.mcts_rollouts` and `tools/build_mcts_pairs.py` provide the first LC0 MultiPV rollout-pair builder. It writes JSONL records with root FEN, best PV, selected subpar PVs, centipawn scores, optional unique trajectory FENs, and preferred trajectory activation records with rolling history.
 - `lc0jax.interpretability.pair_builders` and `tools/materialize_mcts_pairs.py` join rollout-pair JSONL records with trajectory activation shards and write solver-ready `pairs.npz` files containing `differences = psi(best) - psi(subpar)` plus aligned metadata. New trajectory records carry stable activation keys so repeated FENs under different histories do not collide.
@@ -30,6 +31,7 @@ Implemented toward parity:
 - GCP smoke run `data/runs/gcp_dynamic_smoke_records_20260427` on `pipeline-vm` validated the full dynamic path from LC0 MultiPV search through history-aware flat activation dumping, `pairs.npz` materialization, sparse solve, and novelty reporting.
 - GCP larger run `data/runs/gcp_dynamic_large_20260427_174945` had 100 candidate evaluation roots available on `pipeline-vm` (`us-central1-a`, `n2-standard-16`, no accelerator, CPU/JAX path, LC0 Eigen backend), using LC0 at `/root/lc0-src/build/release/lc0` (`v0.32.1 built Apr 27 2026`), BT4 SHA256 `e6ada9d6c4a769bfab3aa0848d82caeb809aa45f83e6c605fc58a31d21bdd618`, 800 LC0 nodes, MultiPV 4, and `max_pairs=40`. It scanned 49 roots before hitting the cap, kept 40 rollout-pair records, wrote 948 history-aware trajectory records, and materialized 93 flat dynamic differences with a grouped split of 72 train / 21 held-out rows.
 - The same larger run completed an end-to-end mean-pooled fallback report under `data/runs/gcp_dynamic_large_20260427_174945/concepts/dynamic_sparse_mean`: mean pair shape `(93, 1024)`, train `(72, 1024)`, test `(21, 1024)`, solver status `optimal`, train constraint satisfaction `1.0`, train margin satisfaction `0.75`, held-out constraint satisfaction `0.667`, held-out margin satisfaction `0.381`, 32 teachability curriculum rows, and policy-margin `mean_delta_margin=-2.42e-08` on 16 held-out rows at `alpha=0.1`.
+- Screened flat validation on the preserved larger GCP pairs completed under `data/runs/gcp_dynamic_large_20260427_174945/concepts/dynamic_sparse_screened_2048`: source pair shape `(93, 65536)`, train `(72, 65536)`, test `(21, 65536)`, screened dimension `2048`, solver status `optimal`, held-out constraint satisfaction `0.762`, held-out margin satisfaction `0.190`, 32 teachability curriculum rows, and policy-margin `mean_delta_margin=-4.43e-07` on 16 held-out rows at `alpha=0.1`.
 
 Known gaps:
 
@@ -37,17 +39,18 @@ Known gaps:
 - FEN-only activation dumps still call `encode_board(board, [])`; use `--records` for PGN-derived human games and MCTS trajectory dumps when history matters.
 - Static puzzle-tag matching is useful for interpretation, but it is not the unsupervised discovery signal used by Schut et al.
 - Teachability filtering is not implemented. We need a weaker LC0 checkpoint or student model, prototype curricula, KL distillation, and top-1 overlap lift against random-prototype baselines.
-- The direct flat sparse CVXPY/SCS solve does not yet scale comfortably. On the larger GCP run, solving 72 train rows over 65,536 flat features was still active after about 30 minutes on `n2-standard-16` and was terminated after the mean-pooled fallback completed. Keep the flat pair artifacts, but add a faster solver path before larger flat sweeps.
+- The exact direct flat sparse CVXPY/SCS solve still does not scale comfortably. Screened flat solves are now practical for larger validation runs, but this is an approximation because feature screening constrains the support before solving the original L1 objective.
 - The first mean-pooled policy-margin patch effect was effectively zero at `alpha=0.1`. This validates the patch/report plumbing on held-out rows, but not concept strength or causal usefulness.
+- The first screened flat policy-margin patch effect was also tiny at `alpha=0.1`, so causal patch calibration remains open.
 - Full-scale activation dumps, MCTS pair extraction, SVD sweeps on large matrices, and teachability training should run on GCP, not on this local workspace.
 
 ## Next Work Items
 
-1. Add a faster large-flat dynamic solver path.
-   The next implementation step should make 65,536-dimensional flat dynamic solves practical. Candidate approaches: feature screening by univariate margins before CVXPY, an sklearn sparse linear SVM/logistic fallback, SCS iteration/time-limit controls, token/channel grouped reductions, or a two-stage mean-to-flat refinement. Keep the exact Schut L1 objective available for small runs.
+1. Compare screened flat feature caps and scoring methods.
+   Run `--max-features` sweeps such as 1024, 2048, 4096, and 8192, compare `abs_mean` vs `mean_abs`, and report held-out/baseline/policy-margin metrics. Keep exact unscreened CVXPY as the reference path for small runs.
 
-2. Re-run the larger flat report after the solver bottleneck is addressed.
-   Reuse or regenerate a run like `gcp_dynamic_large_20260427_174945`, solve on the root-grouped train split, then run held-out evaluation, baselines, prototype selection, curriculum export, and policy-margin patching on the held-out test split.
+2. Scale the screened flat report to more LC0 rollout pairs.
+   Reuse the same run structure, increase `max_pairs`, shard LC0 MCTS extraction where needed, and keep command/environment metadata in `RUN_METADATA.md`.
 
 3. Improve causal patch calibration.
    Sweep `alpha`, compare normalized `direction` vs `raw_direction`, and report policy-margin/top-1 changes against random and shuffled controls. The first larger mean-pooled run had near-zero margin movement, so this needs quantitative calibration before teachability claims.
@@ -86,3 +89,5 @@ Every GCP run should write outputs under `data/runs/<RUN_ID>/` and record the ma
 - 2026-04-27: Teachability curriculum export tests passed; `.venv/bin/python -m pytest -q` passed with 72 tests after adding `tools/export_teachability_curriculum.py`. Review hardening added required row-field validation, provenance in each curriculum row, and negative-limit CLI coverage.
 - 2026-04-27: Ruff could not be run because it is not installed in the current `.venv`; line lengths were checked manually for the touched Python files.
 - 2026-04-27: Larger GCP dynamic validation `gcp_dynamic_large_20260427_174945` ran on `pipeline-vm` with LC0 nodes `800`, MultiPV `4`, and `max_pairs=40`. MCTS kept 40 pair records from 49 scanned roots and produced 948 history-aware trajectory records. Flat materialization produced `(93, 65536)` differences split into 72 train / 21 test rows, but the flat CVXPY/SCS solve was still running after about 30 minutes and was terminated. A mean-pooled fallback completed end-to-end with `(93, 1024)` differences, solver status `optimal`, held-out constraint satisfaction `0.667`, held-out margin satisfaction `0.381`, 32 curriculum rows, and policy-margin `mean_delta_margin=-2.42e-08` at `alpha=0.1`. Exact command lines and environment metadata are recorded in `data/runs/gcp_dynamic_large_20260427_174945/RUN_METADATA.md` on `pipeline-vm`; refreshed local artifact bundle: `/tmp/gcp_dynamic_large_20260427_174945_mean_artifacts.tar.gz`.
+- 2026-04-27: Screened flat solver tests passed; `.venv/bin/python -m pytest tests/test_concepts.py tests/test_solve_dynamic_concepts_cli.py -q` passed, then `.venv/bin/python -m pytest -q` passed with 75 tests.
+- 2026-04-27: Screened flat GCP validation completed on the preserved large flat pairs with `--max-features 2048`. It solved `(72, 65536)` train rows with a 2048-feature screen, evaluated `(21, 65536)` held-out rows, wrote prototypes/curriculum/baselines/report artifacts, and produced held-out constraint satisfaction `0.762`, held-out margin satisfaction `0.190`, and policy-margin `mean_delta_margin=-4.43e-07` at `alpha=0.1`. Local artifact bundle: `/tmp/gcp_dynamic_large_20260427_174945_screened_2048_artifacts.tar.gz`.
