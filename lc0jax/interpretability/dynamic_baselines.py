@@ -20,6 +20,10 @@ def evaluate_direction(
     direction = np.asarray(direction, dtype=np.float64).reshape(-1)
     if differences.ndim != 2:
         raise ValueError(f"Expected rank-2 differences, got {differences.shape}")
+    if differences.shape[0] == 0:
+        raise ValueError("At least one difference row is required")
+    if differences.shape[1] == 0:
+        raise ValueError("At least one feature column is required")
     if direction.shape[0] != differences.shape[1]:
         raise ValueError(
             f"Direction dim {direction.shape[0]} does not match differences dim {differences.shape[1]}"

@@ -43,6 +43,10 @@ def _escape_table(text: Any) -> str:
     return str(text).replace("|", "\\|").replace("\n", " ")
 
 
+def _list_get(items: list[Any], idx: int, default: Any = "") -> Any:
+    return items[idx] if idx < len(items) else default
+
+
 def _load_pairs_summary(pairs_path: Path) -> dict[str, Any]:
     data = np.load(pairs_path, allow_pickle=True)
     metadata = {}
@@ -192,12 +196,19 @@ def build_dynamic_concept_report(
         ]
     )
 
-    count = min(top_n, len(pairs["root_fens"]))
+    if top_n < 0:
+        raise ValueError("top_n must be >= 0")
+    available = max(
+        len(pairs["root_fens"]),
+        len(pairs["best_moves"]),
+        len(pairs["subpar_moves"]),
+        len(pairs["best_pv"]),
+        len(pairs["subpar_pv"]),
+    )
+    count = min(top_n, available)
     for idx in range(count):
-        best_score = pairs["best_score_cp"][idx] if idx < len(pairs["best_score_cp"]) else None
-        subpar_score = (
-            pairs["subpar_score_cp"][idx] if idx < len(pairs["subpar_score_cp"]) else None
-        )
+        best_score = _list_get(pairs["best_score_cp"], idx, None)
+        subpar_score = _list_get(pairs["subpar_score_cp"], idx, None)
         delta = "n/a"
         if best_score is not None and subpar_score is not None:
             try:
@@ -208,14 +219,14 @@ def build_dynamic_concept_report(
             "| {idx} | {best} ({best_score}) | {subpar} ({subpar_score}) | "
             "{delta} | {best_pv} | {subpar_pv} | {root} |".format(
                 idx=idx,
-                best=_escape_table(pairs["best_moves"][idx]),
+                best=_escape_table(_list_get(pairs["best_moves"], idx, "")),
                 best_score=_escape_table(best_score),
-                subpar=_escape_table(pairs["subpar_moves"][idx]),
+                subpar=_escape_table(_list_get(pairs["subpar_moves"], idx, "")),
                 subpar_score=_escape_table(subpar_score),
                 delta=_escape_table(delta),
-                best_pv=_escape_table(pairs["best_pv"][idx]),
-                subpar_pv=_escape_table(pairs["subpar_pv"][idx]),
-                root=_escape_table(pairs["root_fens"][idx]),
+                best_pv=_escape_table(_list_get(pairs["best_pv"], idx, "")),
+                subpar_pv=_escape_table(_list_get(pairs["subpar_pv"], idx, "")),
+                root=_escape_table(_list_get(pairs["root_fens"], idx, "")),
             )
         )
     if count == 0:

@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from lc0jax.interpretability.dynamic_baselines import (
     dynamic_baseline_report,
@@ -16,6 +17,11 @@ def test_evaluate_direction_reports_constraint_satisfaction():
     assert metrics["constraint_satisfaction"] == 0.5
     assert metrics["margin_satisfaction"] == 0.5
     assert metrics["mean_score"] == 0.5
+
+
+def test_evaluate_direction_rejects_empty_differences():
+    with pytest.raises(ValueError, match="At least one difference row"):
+        evaluate_direction(np.empty((0, 2)), np.asarray([1.0, 0.0]))
 
 
 def test_random_sparse_directions_are_unit_norm_and_sparse():

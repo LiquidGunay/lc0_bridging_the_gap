@@ -1,6 +1,7 @@
 import json
 
 import numpy as np
+import pytest
 
 from lc0jax.interpretability.dynamic_reports import build_dynamic_concept_report
 
@@ -99,3 +100,51 @@ def test_build_dynamic_concept_report_includes_solver_novelty_and_pairs(tmp_path
     assert "- actual constraint satisfaction: 1.000000" in report
     assert "- random sparse constraint satisfaction mean: 0.250000" in report
     assert "| 0 | e2e4 (50) | d2d4 (10) | 40 | e2e4 e7e5 | d2d4 d7d5 | root fen |" in report
+
+
+def test_build_dynamic_concept_report_handles_partial_pair_metadata(tmp_path):
+    pairs = tmp_path / "pairs.npz"
+    np.savez_compressed(
+        pairs,
+        differences=np.ones((1, 8), dtype=np.float32),
+        root_fens=np.asarray(["root fen"], dtype=object),
+    )
+    concept_dir = tmp_path / "concept"
+    concept_dir.mkdir()
+    (concept_dir / "report.json").write_text(
+        json.dumps(
+            {
+                "method": "dynamic_sparse_cvxpy",
+                "status": "optimal",
+                "num_pairs": 1,
+                "dimension": 8,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    report = build_dynamic_concept_report(
+        pairs_path=pairs,
+        concept_dir=concept_dir,
+        top_n=1,
+    )
+
+    assert "| 0 |  (None) |  (None) | n/a |  |  | root fen |" in report
+
+
+def test_build_dynamic_concept_report_rejects_negative_top_n(tmp_path):
+    pairs = tmp_path / "pairs.npz"
+    np.savez_compressed(
+        pairs,
+        differences=np.ones((1, 8), dtype=np.float32),
+    )
+    concept_dir = tmp_path / "concept"
+    concept_dir.mkdir()
+    (concept_dir / "report.json").write_text("{}", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="top_n must be >= 0"):
+        build_dynamic_concept_report(
+            pairs_path=pairs,
+            concept_dir=concept_dir,
+            top_n=-1,
+        )
