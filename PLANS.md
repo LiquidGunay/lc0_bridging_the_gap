@@ -68,6 +68,8 @@ The goal is to build an open-source, reproducible pipeline that can load a real 
 - [x] (2026-04-27 17:15Z) Added JSONL teachability curriculum export from dynamic prototype/control reports.
 - [x] (2026-04-27 18:50Z) Ran larger GCP dynamic validation `data/runs/gcp_dynamic_large_20260427_174945` on `pipeline-vm`: 800 LC0 nodes, MultiPV 4, 40 kept rollout-pair records from 49 scanned roots, 948 history-aware trajectory records, 93 materialized dynamic differences, grouped 72 train / 21 held-out split, and completed a mean-pooled end-to-end report after identifying flat sparse solve runtime as the next bottleneck.
 - [x] (2026-04-27 19:10Z) Added a screened flat dynamic solver path (`tools/solve_dynamic_concepts.py --max-features`) that preserves the exact sparse CVXPY objective on a deterministic feature subset and expands directions back to the original feature dimension; validated it on the preserved `(93, 65536)` GCP flat pairs with a 2048-feature screen.
+- [x] (2026-04-28 00:00Z) Added `tools/sweep_dynamic_screening.py` to sweep screened feature caps, screening methods, held-out evaluation, baselines, prototypes, curriculum export, and optional policy-margin alpha/direction-key settings with aggregate JSON/Markdown summaries.
+- [x] (2026-04-28 04:10Z) Ran the screened-solver sweep on `pipeline-vm` for `gcp_dynamic_large_20260427_174945`: 8 solver configs and 64 policy-margin variants. `abs_mean_2048` was best on held-out constraint/margin, while raw-direction alpha-3 patching produced large but often harmful policy-margin effects.
 - [ ] Add teachability evaluation with a weaker LC0 checkpoint or student network and random-prototype baselines.
 
 ## Surprises & Discoveries
@@ -120,6 +122,8 @@ The goal is to build an open-source, reproducible pipeline that can load a real 
   Evidence: `dynamic_sparse_mean/policy_margin_report.json` reported `mean_delta_margin=-2.421438694000244e-08`, `top1_change_rate=0.0`, and `skipped_rows=0` on 16 held-out rows at `alpha=0.1`.
 - Observation: Deterministic feature screening makes the first larger flat validation tractable, but causal patch effects are still tiny at the tested patch scale.
   Evidence: `gcp_dynamic_large_20260427_174945/concepts/dynamic_sparse_screened_2048` solved the `(72, 65536)` train split with a 2048-feature screen and status `optimal`, then reported held-out constraint satisfaction `0.762`, held-out margin satisfaction `0.190`, and policy-margin `mean_delta_margin=-4.4330954551696777e-07` at `alpha=0.1`.
+- Observation: The first screening sweep favors `abs_mean_2048` for held-out ranking, while raw-direction patching is powerful but not reliably positive.
+  Evidence: `screening_sweep_20260428` compared 8 solver configs and 64 policy-margin variants. `abs_mean_2048` had the best held-out constraint score (`0.762`) and best held-out margin score (`0.190` tied only against lower constraint settings). Normalized direction patches stayed near zero even at `alpha=3.0`, while raw-direction alpha-3 patches changed top-1 heavily and often reduced best-vs-subpar margin.
 
 ## Decision Log
 
@@ -250,6 +254,9 @@ The goal is to build an open-source, reproducible pipeline that can load a real 
 - Decision: Add deterministic feature screening as the first scalable flat solver path while keeping the exact unscreened sparse CVXPY objective available.
   Rationale: The Schut-style L1 objective remains unchanged on the selected support, outputs retain the original feature dimension for evaluation and patching, and selected feature indices/scores are stored for reproducibility.
   Date/Author: 2026-04-27 / Codex
+- Decision: Add a dedicated screened-solver sweep CLI instead of hand-running each feature cap/method/alpha combination.
+  Rationale: The next comparisons need consistent per-configuration artifacts and one aggregate report to avoid cherry-picking one screened run.
+  Date/Author: 2026-04-28 / Codex
 
 ## Outcomes & Retrospective
 
