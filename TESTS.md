@@ -26,6 +26,7 @@ This document explains why each test exists and what failure it is meant to catc
 - The sparse CVXPY paired-difference test checks the Schut-style objective directly: a positive-vs-negative difference matrix should produce a sparse direction with positive held-in constraints.
 - The screened sparse-solver tests check that deterministic feature screening picks high-signal columns, solves the unchanged CVXPY objective in the selected subspace, and expands the result back to the original feature dimension.
 - `tests/test_solve_dynamic_concepts_cli.py` checks that the dynamic solver CLI writes screening metadata and stores selected feature indices/scores for reproducible large-flat runs.
+- `tests/test_sweep_dynamic_screening.py` checks that screened solver sweeps write per-configuration concept artifacts, held-out evaluation reports, baselines, prototype/curriculum artifacts, and aggregate JSON/Markdown summaries without requiring model weights.
 - The dynamic rollout-difference test checks the first non-search piece of dynamic concept discovery: stored optimal/subpar trajectories can be aggregated with both-player or single-player indexing before solving the sparse objective.
 - `tests/test_mcts_rollouts.py` checks PV replay, side-to-move centipawn conversion, and serialization of python-chess analysis info without launching LC0.
 - `tests/test_pair_builders.py` checks that rollout-pair JSONL plus activation shards materialize into the `differences` matrix consumed by the dynamic sparse solver.

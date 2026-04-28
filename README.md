@@ -61,6 +61,8 @@ Record the LC0 version used for ONNX export and the BT4 model checksum (see `AGE
   - `python tools/solve_dynamic_concepts.py --pairs data/runs/<RUN_ID>/mcts_pairs/pairs.train.npz --out data/runs/<RUN_ID>/concepts/dynamic_sparse --mode flat`
     For large flat runs, use deterministic feature screening as a support-constrained approximation: it solves the same CVXPY objective on selected columns, then expands the solved direction back to the original feature dimension:
     `python tools/solve_dynamic_concepts.py --pairs data/runs/<RUN_ID>/mcts_pairs/pairs.train.npz --out data/runs/<RUN_ID>/concepts/dynamic_sparse_screened --mode flat --max-features 2048`
+  - Sweep screened solver settings and optional policy-margin alpha values:
+    `python tools/sweep_dynamic_screening.py --train-pairs data/runs/<RUN_ID>/mcts_pairs/pairs.train.npz --test-pairs data/runs/<RUN_ID>/mcts_pairs/pairs.test.npz --out data/runs/<RUN_ID>/concepts/screening_sweep --max-features 1024,2048,4096,8192 --screening-methods abs_mean,mean_abs --pb models/BT4-1024x15x32h-swa-6147500-policytune-332.pb.gz --policy-alphas 0.1,0.3,1.0,3.0`
   - `python tools/evaluate_dynamic_concept.py --pairs data/runs/<RUN_ID>/mcts_pairs/pairs.test.npz --concept data/runs/<RUN_ID>/concepts/dynamic_sparse --out data/runs/<RUN_ID>/concepts/dynamic_sparse/heldout_eval_report.json --split-name test`
     This evaluates `raw_direction` by default so held-out margin metrics are comparable to the solver report.
   - `python tools/select_dynamic_prototypes.py --pairs data/runs/<RUN_ID>/mcts_pairs/pairs.train.npz --concept data/runs/<RUN_ID>/concepts/dynamic_sparse --out data/runs/<RUN_ID>/concepts/dynamic_sparse/prototypes_report.json --top-k 32 --random-count 32 --split-name train`
