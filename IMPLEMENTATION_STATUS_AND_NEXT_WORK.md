@@ -1,6 +1,6 @@
 # Implementation Status and Next Work
 
-Updated: 2026-04-27
+Updated: 2026-04-28
 
 ## Current Implementation Status
 
@@ -29,6 +29,8 @@ Implemented toward parity:
 - `lc0jax.interpretability.dynamic_splits` and `tools/split_dynamic_pairs.py` split dynamic `pairs.npz` files by root FEN without the fullmove counter, preserving known row-aligned arrays and scalar metadata while preventing same-position leakage across train/test.
 - `tools/pgn_to_activation_records.py` writes JSONL records with rolling `history_fens`, and `tools/dump_activations.py --records` passes those boards to LC0 encoding instead of using empty history.
 - `tools/run_full_pipeline.sh` now defaults to history-aware human activation records when the broadcast PGN is available; set `HISTORY_HUMAN_RECORDS=0` to keep the old FEN-only path.
+- `tools/run_dynamic_gpu_pipeline.py` orchestrates the dynamic LC0 pipeline for high-strength PGN/FEN roots. It prepares and shards candidate roots, records runtime metadata, sets shared `uv` cache and JAX GPU environment defaults, runs LC0 MCTS pair extraction, dumps flat trajectory activations, materializes paired differences, splits by root position, and launches the screened dynamic sweep. Sharded runs write isolated work directories and stage completion markers so resume does not treat partial outputs as complete.
+- `NON_GCP_GPU_RUNBOOK.md` documents how to run the dynamic pipeline on a non-GCP GPU machine without GCP authentication, including public HTTPS source URLs, local output/artifact paths, CPU staging, GPU setup, LC0 build, smoke test, sharded MCTS, merge, and packaging commands.
 - GCP smoke run `data/runs/gcp_dynamic_smoke_records_20260427` on `pipeline-vm` validated the full dynamic path from LC0 MultiPV search through history-aware flat activation dumping, `pairs.npz` materialization, sparse solve, and novelty reporting.
 - GCP larger run `data/runs/gcp_dynamic_large_20260427_174945` had 100 candidate evaluation roots available on `pipeline-vm` (`us-central1-a`, `n2-standard-16`, no accelerator, CPU/JAX path, LC0 Eigen backend), using LC0 at `/root/lc0-src/build/release/lc0` (`v0.32.1 built Apr 27 2026`), BT4 SHA256 `e6ada9d6c4a769bfab3aa0848d82caeb809aa45f83e6c605fc58a31d21bdd618`, 800 LC0 nodes, MultiPV 4, and `max_pairs=40`. It scanned 49 roots before hitting the cap, kept 40 rollout-pair records, wrote 948 history-aware trajectory records, and materialized 93 flat dynamic differences with a grouped split of 72 train / 21 held-out rows.
 - The same larger run completed an end-to-end mean-pooled fallback report under `data/runs/gcp_dynamic_large_20260427_174945/concepts/dynamic_sparse_mean`: mean pair shape `(93, 1024)`, train `(72, 1024)`, test `(21, 1024)`, solver status `optimal`, train constraint satisfaction `1.0`, train margin satisfaction `0.75`, held-out constraint satisfaction `0.667`, held-out margin satisfaction `0.381`, 32 teachability curriculum rows, and policy-margin `mean_delta_margin=-2.42e-08` on 16 held-out rows at `alpha=0.1`.
@@ -46,6 +48,8 @@ Known gaps:
 - The first mean-pooled policy-margin patch effect was effectively zero at `alpha=0.1`. This validates the patch/report plumbing on held-out rows, but not concept strength or causal usefulness.
 - The first screened flat policy-margin patch effect was also tiny at `alpha=0.1`, so causal patch calibration remains open.
 - Raw-direction patches can move policy logits substantially, but the first sweep suggests they are not yet a reliable positive intervention. Treat raw-direction alpha sweeps as diagnostic until random/shuffled causal controls and sign calibration are stronger.
+- Local runtime checks can see a JAX CUDA device even when `nvidia-smi` and `/dev/nvidia*` are not visible in the shell. Use `tools/run_dynamic_gpu_pipeline.py --runtime-check-only` as the source of truth for JAX availability, and still verify LC0's own CUDA/cuDNN backend separately.
+- The local `/tmp/lc0-src/build/release/lc0` path is currently absent in this workspace, so LC0 MCTS smoke runs need a rebuilt or externally provided LC0 binary. JAX GPU correctness checks can still run locally.
 - Full-scale activation dumps, MCTS pair extraction, SVD sweeps on large matrices, and teachability training should run on GCP, not on this local workspace.
 
 ## Next Work Items
@@ -54,7 +58,7 @@ Known gaps:
    The first sweep favors `abs_mean_2048` on held-out constraint/margin, but this is a 40-pair run. Repeat after scaling MCTS pairs and include random/shuffled causal controls before fixing defaults.
 
 2. Scale the screened flat report to more LC0 rollout pairs.
-   Reuse the same run structure, increase `max_pairs`, shard LC0 MCTS extraction where needed, and keep command/environment metadata in `RUN_METADATA.md`.
+   Use `tools/run_dynamic_gpu_pipeline.py` on a CUDA GCP machine with top computer championship PGNs and/or top-human PGNs, increase `max_pairs`, shard LC0 MCTS extraction where needed, and keep command/environment metadata in `RUN_METADATA.md`.
 
 3. Improve causal patch calibration.
    Sweep `alpha`, compare normalized `direction` vs `raw_direction`, and report policy-margin/top-1 changes against random and shuffled controls. The first larger mean-pooled run had near-zero margin movement, so this needs quantitative calibration before teachability claims.
@@ -98,3 +102,5 @@ Every GCP run should write outputs under `data/runs/<RUN_ID>/` and record the ma
 - 2026-04-28: Screened sweep tooling tests passed; `.venv/bin/python -m pytest tests/test_sweep_dynamic_screening.py -q` and `.venv/bin/python -m pytest -q` passed. Syntax, line-length, and `git diff --check` also passed for touched files.
 - 2026-04-28: GCP screening sweep completed on `pipeline-vm` at `data/runs/gcp_dynamic_large_20260427_174945/concepts/screening_sweep_20260428`. It ran 8 solver configs and 64 policy-margin variants. Best held-out constraint config was `abs_mean_2048` (`0.762` constraint, `0.190` margin). Strongest raw-direction policy movement was `abs_mean_8192`, `alpha=3.0`, `mean_delta_margin=-5.387`, `top1_change_rate=1.0`, which is diagnostic but not a positive intervention. Local artifact bundle: `/tmp/gcp_dynamic_large_20260427_174945_screening_sweep_20260428_artifacts.tar.gz`.
 - 2026-04-28: Review fixes for the sweep tool passed `tests/test_sweep_dynamic_screening.py`, full pytest, and a quick no-policy GCP validation at `data/runs/gcp_dynamic_large_20260427_174945/concepts/screening_sweep_20260428_nopolicy_check`. Fixes applied reverse-sign sweeps correctly, made policy-margin row validation fail fast when requested policy rows are all invalid, and added policy metadata to summaries/reports.
+- 2026-04-28: GPU-oriented dynamic wrapper tests passed; `.venv/bin/python -m py_compile tools/run_dynamic_gpu_pipeline.py tests/test_run_dynamic_gpu_pipeline.py`, `.venv/bin/python -m pytest tests/test_run_dynamic_gpu_pipeline.py -q`, and `.venv/bin/python -m pytest -q` passed. A local BT4 JAX forward smoke ran on `gpu` and returned policy `(1, 1858)`, WDL `(1, 3)`, and MLH `(1, 1)`. Runtime inspection on this machine reports JAX CUDA visibility, but LC0 is not present at `/tmp/lc0-src/build/release/lc0`.
+- 2026-04-28: Non-GCP GPU runbook added with current public source URLs. The latest official LC0 release remains v0.32.1, and the latest Lichess standard rated dump checked today is `lichess_db_standard_rated_2026-03.pgn.zst`.

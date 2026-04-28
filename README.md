@@ -25,10 +25,12 @@ Use `uv` to create isolated environments so experiments can be reproduced across
 - Create venv + install deps:
   - `uv venv .venv`
   - `uv pip install -e ".[dev]"`
+- Reuse a shared wheel cache when moving between local and GCP machines:
+  - `export UV_CACHE_DIR=${UV_CACHE_DIR:-$HOME/.cache/uv}`
 - GPU (CUDA 13 wheels):
-  - `uv pip install "jax[cuda13]" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html`
+  - `uv pip install --python .venv/bin/python "jax[cuda13]" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html`
 - CPU-only fallback:
-  - `uv pip install "jax[cpu]" -f https://storage.googleapis.com/jax-releases/jax_releases.html`
+  - `uv pip install --python .venv/bin/python "jax[cpu]" -f https://storage.googleapis.com/jax-releases/jax_releases.html`
 
 Record the LC0 version used for ONNX export and the BT4 model checksum (see `AGENTS.md`).
 
@@ -53,6 +55,13 @@ Record the LC0 version used for ONNX export and the BT4 model checksum (see `AGE
   - `python tools/discover_concepts.py --embeddings-a data/activations/lc0 --embeddings-b data/activations/human_2000_rapid_classical --out data/concepts/cov_shift_2000 --method cov_shift --k 8 --max-samples 1000`
   - `python tools/discover_concepts.py --embeddings-a data/activations/lc0 --embeddings-b data/activations/human_2000_rapid_classical --out data/concepts/cluster_diff_2000 --method cluster_diff --k 8 --max-samples 1000`
 - Dynamic sparse concepts from precomputed rollout pairs:
+  - One-command GPU-oriented wrapper for high-strength PGN/FEN roots:
+    `python tools/run_dynamic_gpu_pipeline.py --pgn data/pgn/tcec.pgn --pgn data/pgn/top_human.pgn --run-id dynamic_high_strength_4k --lc0 /tmp/lc0-src/build/release/lc0 --weights models/BT4-1024x15x32h-swa-6147500-policytune-332.pb.gz --lc0-backend cuda --max-roots 30000 --max-pairs 4000 --nodes 800 --multipv 4 --activation-batch-size 64 --stop-after sweep`
+    The wrapper writes `data/runs/<RUN_ID>/RUN_METADATA.md`, command logs, candidate roots, LC0 rollout pairs, trajectory activations, materialized flat pairs, train/test splits, and the screened dynamic sweep.
+  - Runtime check for a new machine:
+    `python tools/run_dynamic_gpu_pipeline.py --runtime-check-only`
+  - Use `--dry-run` to record the planned commands without launching LC0 or JAX activation dumps. Use `--resume` to skip stages with wrapper completion markers, and use `--shard-count/--shard-index` to split LC0 MCTS extraction across workers. Sharded workers write isolated outputs under `data/runs/<RUN_ID>/shards/shard_XXX_of_YYY/`; run them with `--stop-after mcts` when distributing only the search step.
+  - `--lc0-backend auto` resolves to `cuda` when JAX sees a GPU. Set `--lc0-backend cudnn` if LC0 was built with cuDNN, or `--lc0-backend none`/`eigen` for CPU fallback.
   - Prefer trajectory records for LC0 112-plane inputs so PV continuations keep rolling history:
     `python tools/dump_activations.py --pb models/BT4-1024x15x32h-swa-6147500-policytune-332.pb.gz --records data/runs/<RUN_ID>/mcts_pairs/trajectory.records.jsonl --out data/runs/<RUN_ID>/activations/trajectory_flat --activation-mode flat --store-token-activations`
   - `python tools/materialize_mcts_pairs.py --pairs-jsonl data/runs/<RUN_ID>/mcts_pairs/pairs.jsonl --activations data/runs/<RUN_ID>/activations/trajectory_flat --out data/runs/<RUN_ID>/mcts_pairs/pairs.npz --mode flat`
@@ -110,6 +119,11 @@ Environment overrides (examples):
 Large LC0 search, full activation dumps, SVD novelty sweeps on large matrices, and teachability
 training should run on GCP. Keep local runs to unit tests, small smoke datasets, and shape checks.
 
+For non-GCP GPU machines without GCP authentication, use
+`NON_GCP_GPU_RUNBOOK.md`. It lists the public HTTPS input URLs, local output
+locations, CPU staging workflow, GPU setup, LC0 build notes, smoke test, sharded
+MCTS run, merge path, and artifact packaging commands.
+
 ## Filtering positions
 
 Use `tools/filter_fens.py` to remove opening positions or tablebase-like endgames before activation dumps.
@@ -140,6 +154,8 @@ Phase is normalized to `[0, 1]` with `1.0` = opening and `0.0` = pure endgame.
 - Human (tactics via Lichess puzzles DB):
   - `python tools/download_data.py lichess-puzzles --out-fens data/lichess/puzzles_2500.fens --min-rating 2500`
   - By default, the puzzle loader applies the first move so the FEN represents the position shown to the solver (use `--raw-fen` to keep the original).
+- Computer championship or top-human PGNs:
+  - Store source PGNs under `data/pgn/` and pass one or more files directly to `tools/run_dynamic_gpu_pipeline.py --pgn ...`. The wrapper samples positions from every mainline, filters openings/endgames, and can shard candidate roots before LC0 search.
 - Computer: use LC0 training chunks or generate selfplay. Training chunks can be converted to one-ply PGNs/FENs:
   - Download latest LC0 chunk tar: `python tools/download_data.py lc0-chunks --out-dir data/lc0-training --count 1 --min-size 1000000`
   - `python tools/chunks_to_pgn.py --chunk data/chunk1.gz --chunk data/chunk2.gz --out-pgn data/lc0_chunk.pgn --out-fens data/lc0_chunk.fens --max-positions 1000`
