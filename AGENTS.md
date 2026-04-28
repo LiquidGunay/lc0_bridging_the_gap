@@ -11,7 +11,7 @@ Guidance for future work in this repository. Keep this file short, factual, and 
 - After running concept discovery, use `tools/causal_validate.py` to generate `causal_report.json` files and rebuild `data/concept_report.md` with `tools/build_concept_report.py`.
 - Use the specific target network `BT4-1024x15x32h-swa-6147500-policytune-332.pb.gz` as the default model for all tests and comparisons.
 - Use the official LC0 binary and its bundled `leela2onnx` for ONNX export; record the exact LC0 release version and archive checksum.
-- As of 2026-01-29, the latest official LC0 release is v0.32.1; update this pin if a newer release is published.
+- As of 2026-04-28, the latest official LC0 release is v0.32.1; update this pin if a newer release is published.
 - The official v0.32.1 release has no Linux binary assets; build from source with Meson/Ninja when running on Linux.
 - LC0 build artifact currently lives at `/tmp/lc0-src/build/release/lc0` and depends on its build directory for `libz.so`.
 - Use PGN as the primary dataset input for human and LC0 self-play data, and support cached FEN lists as an intermediate format.
@@ -51,7 +51,7 @@ Guidance for future work in this repository. Keep this file short, factual, and 
 - Use `tools/export_pb.py` (template + LINEAR16) to export JAX BT4 params back into LC0 `.pb.gz` for UCI use.
 - The BT4 template contains an empty `policy_head_map` entry; prune empty map entries before serializing.
 - Concept clustering uses scikit-learn; keep the dependency in sync with `pyproject.toml`.
-- As of 2026-02-01, the latest Lichess standard rated PGN dump is `lichess_db_standard_rated_2025-12.pgn.zst` (confirm via the index before hard-coding any month).
+- As of 2026-04-28, the latest Lichess standard rated PGN dump is `lichess_db_standard_rated_2026-03.pgn.zst` (confirm via the index before hard-coding any month).
 - Use `tools/lc0_benchmark.py` for quick LC0 throughput checks; record benchmark results if performance regressions appear.
 - LC0 does not accept a `--uci` flag; launch the binary directly for UCI tools (`tools/elo_bench.py`, `tools/uci_ui.py`).
 - For long searches, increase the python-chess UCI timeout (default 60s in the tools) to avoid `TimeoutError`.

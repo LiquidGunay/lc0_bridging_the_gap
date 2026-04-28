@@ -124,10 +124,17 @@ The goal is to build an open-source, reproducible pipeline that can load a real 
   Evidence: `gcp_dynamic_large_20260427_174945/concepts/dynamic_sparse_screened_2048` solved the `(72, 65536)` train split with a 2048-feature screen and status `optimal`, then reported held-out constraint satisfaction `0.762`, held-out margin satisfaction `0.190`, and policy-margin `mean_delta_margin=-4.4330954551696777e-07` at `alpha=0.1`.
 - Observation: The first screening sweep favors `abs_mean_2048` for held-out ranking, while raw-direction patching is powerful but not reliably positive.
   Evidence: `screening_sweep_20260428` compared 8 solver configs and 64 policy-margin variants. `abs_mean_2048` had the best held-out constraint score (`0.762`) and best held-out margin score (`0.190` tied only against lower constraint settings). Normalized direction patches stayed near zero even at `alpha=3.0`, while raw-direction alpha-3 patches changed top-1 heavily and often reduced best-vs-subpar margin.
+- Observation: The local shell does not expose `nvidia-smi` or `/dev/nvidia*`, but JAX in `.venv` reports a CUDA device.
+  Evidence: `tools/run_dynamic_gpu_pipeline.py --runtime-check-only` records both shell-level NVIDIA visibility and JAX device discovery so GCP/local runs do not silently assume CPU.
+- Observation: The local LC0 binary path is absent, so LC0 search throughput cannot be smoke-tested in this workspace until LC0 is rebuilt or supplied.
+  Evidence: `/tmp/lc0-src/build/release/lc0` does not exist, while the GCP CPU validation used `/root/lc0-src/build/release/lc0`.
 
 ## Decision Log
 
 
+- Decision: Add a single GPU-oriented dynamic pipeline wrapper instead of creating another parallel pipeline implementation.
+  Rationale: The existing LC0 MCTS, activation, materialization, split, and sweep tools already encode the domain behavior. The wrapper should prepare high-strength PGN/FEN roots, set GPU-friendly runtime environment, isolate shard work directories, require stage completion markers for resume, and record commands/metadata under `data/runs/<RUN_ID>/`.
+  Date/Author: 2026-04-28 / Codex
 - Decision: Target the specific network `BT4-1024x15x32h-swa-6147500-policytune-332.pb.gz` and make it the only required net for the first implementation.
   Rationale: This aligns with the user's request and ensures the oracle and Flax parity work is tightly scoped.
   Date/Author: 2026-01-29 / Codex
