@@ -1,5 +1,6 @@
 import json
 
+import chess
 import numpy as np
 
 from tools import sweep_dynamic_screening
@@ -125,3 +126,33 @@ def test_sweep_dynamic_screening_reverse_flips_training_objective(tmp_path, monk
     assert report["constraint_satisfaction"] == 1.0
     direction = np.load(out / "abs_mean_1" / "concept_direction.npz", allow_pickle=True)
     assert direction["raw_direction"][1] > 0.0
+
+
+def test_policy_rows_use_root_history_fens(tmp_path, monkeypatch):
+    board = chess.Board()
+    start_fen = board.fen()
+    board.push_san("e4")
+    root_fen = board.fen()
+    pairs = tmp_path / "pairs.npz"
+    np.savez_compressed(
+        pairs,
+        differences=np.ones((1, 2), dtype=np.float32),
+        root_fens=np.asarray([root_fen], dtype=object),
+        root_history_fens=np.asarray([[start_fen, root_fen]], dtype=object),
+        best_moves=np.asarray(["e7e5"], dtype=object),
+        subpar_moves=np.asarray(["c7c5"], dtype=object),
+    )
+    captured_history = []
+
+    def fake_encode_board(_board, history, **_kwargs):
+        captured_history.append([item.fen() for item in history])
+        return np.zeros((112, 8, 8), dtype=np.float32)
+
+    monkeypatch.setattr("lc0jax.modeling.encode.encode_board", fake_encode_board)
+
+    rows = sweep_dynamic_screening._policy_rows(pairs, max_pairs=None, seed=0)
+
+    assert rows is not None
+    assert rows["planes"].shape == (1, 112, 8, 8)
+    assert rows["root_history_fens"] == [[start_fen, root_fen]]
+    assert captured_history == [[start_fen, root_fen]]

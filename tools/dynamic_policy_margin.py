@@ -9,6 +9,7 @@ from pathlib import Path
 import numpy as np
 
 from lc0jax.interpretability.dynamic_causal import policy_margin_report
+from lc0jax.interpretability.pair_builders import normalize_history_fens
 from lc0jax.modeling.encode import encode_board
 from lc0jax.modeling.inference import forward
 from lc0jax.modeling.policy import attention_policy_map, legal_move_mask, move_to_policy_index
@@ -42,6 +43,10 @@ def _load_pair_rows(path: Path, *, max_pairs: int | None, seed: int) -> dict:
         "best_moves": data["best_moves"].tolist(),
         "subpar_moves": data["subpar_moves"].tolist(),
     }
+    if "root_history_fens" in data:
+        rows["root_history_fens"] = data["root_history_fens"].tolist()
+    else:
+        rows["root_history_fens"] = [[fen] for fen in rows["root_fens"]]
     count = min(len(rows["root_fens"]), len(rows["best_moves"]), len(rows["subpar_moves"]))
     indices = np.arange(count)
     if max_pairs is not None and count > max_pairs:
@@ -80,11 +85,17 @@ def main() -> int:
 
     best_indices = []
     subpar_indices = []
-    valid_rows = {"root_fens": [], "best_moves": [], "subpar_moves": []}
+    valid_rows = {
+        "root_fens": [],
+        "root_history_fens": [],
+        "best_moves": [],
+        "subpar_moves": [],
+    }
     legal_masks = []
     skipped = 0
-    for root_fen, best_move, subpar_move in zip(
+    for root_fen, root_history, best_move, subpar_move in zip(
         rows["root_fens"],
+        rows["root_history_fens"],
         rows["best_moves"],
         rows["subpar_moves"],
     ):
@@ -92,6 +103,9 @@ def main() -> int:
             best_idx = move_to_policy_index(str(best_move), "lc0_1858")
             subpar_idx = move_to_policy_index(str(subpar_move), "lc0_1858")
             board = chess.Board(str(root_fen))
+            history_fens = normalize_history_fens(root_history, str(root_fen))
+            for history_fen in history_fens:
+                chess.Board(history_fen)
         except (KeyError, ValueError):
             skipped += 1
             continue
@@ -105,6 +119,7 @@ def main() -> int:
         subpar_indices.append(subpar_idx)
         legal_masks.append(legal_move_mask(board, "lc0_1858"))
         valid_rows["root_fens"].append(str(root_fen))
+        valid_rows["root_history_fens"].append(history_fens)
         valid_rows["best_moves"].append(str(best_move))
         valid_rows["subpar_moves"].append(str(subpar_move))
     if not valid_rows["root_fens"]:
@@ -118,12 +133,16 @@ def main() -> int:
     patched_batches = []
     for start, stop in _batch_indices(len(valid_rows["root_fens"]), args.batch_size):
         planes = []
-        for fen in valid_rows["root_fens"][start:stop]:
+        for fen, history_fens in zip(
+            valid_rows["root_fens"][start:stop],
+            valid_rows["root_history_fens"][start:stop],
+        ):
             board = chess.Board(fen)
+            history_boards = [chess.Board(history_fen) for history_fen in history_fens]
             planes.append(
                 encode_board(
                     board,
-                    [],
+                    history_boards,
                     planes_layout="nchw",
                     input_format="INPUT_CLASSICAL_112_PLANE",
                 )

@@ -1,6 +1,6 @@
 # Implementation Status and Next Work
 
-Updated: 2026-04-28
+Updated: 2026-05-05
 
 ## Current Implementation Status
 
@@ -18,18 +18,19 @@ Implemented toward parity:
 - `tools/solve_dynamic_concepts.py` solves active or reversed-sign sparse concepts from a stored rollout-pair `.npz` file. Use `--max-features` for screened large-flat solves; selected feature indices and scores are stored in `concept_direction.npz`.
 - `tools/sweep_dynamic_screening.py` runs a grid of screened flat solver settings, held-out evaluations, baselines, prototype/curriculum export, and optional policy-margin alpha/direction-key sweeps. It writes per-configuration artifacts plus aggregate `summary.json` and `summary.md`.
 - `lc0jax.interpretability.novelty` and `tools/filter_novel_concepts.py` implement the Schut-style SVD reconstruction comparison between machine and human activation bases.
-- `lc0jax.interpretability.mcts_rollouts` and `tools/build_mcts_pairs.py` provide the first LC0 MultiPV rollout-pair builder. It writes JSONL records with root FEN, best PV, selected subpar PVs, centipawn scores, optional unique trajectory FENs, and preferred trajectory activation records with rolling history.
-- `lc0jax.interpretability.pair_builders` and `tools/materialize_mcts_pairs.py` join rollout-pair JSONL records with trajectory activation shards and write solver-ready `pairs.npz` files containing `differences = psi(best) - psi(subpar)` plus aligned metadata. New trajectory records carry stable activation keys so repeated FENs under different histories do not collide.
+- `lc0jax.interpretability.mcts_rollouts` and `tools/build_mcts_pairs.py` provide the first LC0 MultiPV rollout-pair builder. It writes JSONL records with root FEN, optional root-history/provenance metadata, best PV, selected subpar PVs, centipawn scores, optional unique trajectory FENs, and preferred trajectory activation records with rolling history.
+- `tools/build_mcts_pairs.py --root-records` now accepts PGN-derived root records with `fen`, `history_fens`, `game_id`, `game_index`, `ply`, `source`, and `record_id`. It reconstructs a short python-chess move stack from consecutive history FENs when possible before calling UCI search and records `root_history_reconstructed`; trajectory activation records combine pre-root history with PV continuation history, clipped to the configured `--history-len`.
+- `lc0jax.interpretability.pair_builders` and `tools/materialize_mcts_pairs.py` join rollout-pair JSONL records with trajectory activation shards and write solver-ready `pairs.npz` files containing `differences = psi(best) - psi(subpar)` plus aligned metadata. New trajectory records carry stable activation keys so repeated FENs under different histories do not collide, and root history/provenance metadata is preserved for downstream splits, prototypes, and curricula.
 - `lc0jax.interpretability.dynamic_reports` and `tools/build_dynamic_concept_report.py` build markdown report cards from `pairs.npz`, solver `report.json`, and optional `novelty_report.json`.
 - `lc0jax.interpretability.dynamic_baselines` and `tools/dynamic_concept_baselines.py` compare learned dynamic directions against random sparse vectors, shuffled-label projections, and optional shuffled-label sparse solves.
 - `lc0jax.interpretability.dynamic_evaluation` and `tools/evaluate_dynamic_concept.py` report held-out constraint and margin satisfaction for a learned dynamic direction on a held-out pair split. The CLI evaluates `raw_direction` by default so held-out margins are comparable to solver margins.
 - `lc0jax.interpretability.dynamic_prototypes` and `tools/select_dynamic_prototypes.py` select top-scoring dynamic concept pair rows plus random controls for future teachability curricula. Prototype selection auto-detects reversed concept runs and preserves row-aligned metadata in selected rows.
 - `lc0jax.interpretability.dynamic_teachability` and `tools/export_teachability_curriculum.py` export prototype/control selections to JSONL records with target/contrast moves and provenance for downstream student-training jobs.
-- `lc0jax.interpretability.dynamic_causal` and `tools/dynamic_policy_margin.py` measure best-vs-subpar policy-logit margin changes before and after patching a dynamic concept direction.
+- `lc0jax.interpretability.dynamic_causal` and `tools/dynamic_policy_margin.py` measure best-vs-subpar policy-logit margin changes before and after patching a dynamic concept direction. Policy-margin CLIs use row-aligned `root_history_fens` when present so BT4 policy checks match PGN-derived root-history inputs.
 - `lc0jax.interpretability.dynamic_splits` and `tools/split_dynamic_pairs.py` split dynamic `pairs.npz` files by root FEN without the fullmove counter, preserving known row-aligned arrays and scalar metadata while preventing same-position leakage across train/test.
 - `tools/pgn_to_activation_records.py` writes JSONL records with rolling `history_fens`, and `tools/dump_activations.py --records` passes those boards to LC0 encoding instead of using empty history.
 - `tools/run_full_pipeline.sh` now defaults to history-aware human activation records when the broadcast PGN is available; set `HISTORY_HUMAN_RECORDS=0` to keep the old FEN-only path.
-- `tools/run_dynamic_gpu_pipeline.py` orchestrates the dynamic LC0 pipeline for high-strength PGN/FEN roots. It prepares and shards candidate roots, records runtime metadata, sets shared `uv` cache and JAX GPU environment defaults, runs LC0 MCTS pair extraction, dumps flat trajectory activations, materializes paired differences, splits by root position, and launches the screened dynamic sweep. Sharded runs write isolated work directories and stage completion markers so resume does not treat partial outputs as complete.
+- `tools/run_dynamic_gpu_pipeline.py` orchestrates the dynamic LC0 pipeline for high-strength PGN/FEN roots. For `--pgn` inputs it prepares, filters, and shards root-record JSONL with pre-root history and passes `--root-records` to MCTS extraction. Plain `--fens` inputs remain supported as a legacy/debug path. The wrapper records runtime metadata, sets shared `uv` cache and JAX GPU environment defaults, runs LC0 MCTS pair extraction, dumps flat trajectory activations, materializes paired differences, splits by root position, and launches the screened dynamic sweep. Sharded runs write isolated work directories and stage completion markers so resume does not treat partial outputs as complete.
 - `NON_GCP_GPU_RUNBOOK.md` documents how to run the dynamic pipeline on a non-GCP GPU machine without GCP authentication, including public HTTPS source URLs, local output/artifact paths, CPU staging, GPU setup, LC0 build, smoke test, sharded MCTS, merge, and packaging commands.
 - GCP smoke run `data/runs/gcp_dynamic_smoke_records_20260427` on `pipeline-vm` validated the full dynamic path from LC0 MultiPV search through history-aware flat activation dumping, `pairs.npz` materialization, sparse solve, and novelty reporting.
 - GCP larger run `data/runs/gcp_dynamic_large_20260427_174945` had 100 candidate evaluation roots available on `pipeline-vm` (`us-central1-a`, `n2-standard-16`, no accelerator, CPU/JAX path, LC0 Eigen backend), using LC0 at `/root/lc0-src/build/release/lc0` (`v0.32.1 built Apr 27 2026`), BT4 SHA256 `e6ada9d6c4a769bfab3aa0848d82caeb809aa45f83e6c605fc58a31d21bdd618`, 800 LC0 nodes, MultiPV 4, and `max_pairs=40`. It scanned 49 roots before hitting the cap, kept 40 rollout-pair records, wrote 948 history-aware trajectory records, and materialized 93 flat dynamic differences with a grouped split of 72 train / 21 held-out rows.
@@ -41,7 +42,7 @@ Implemented toward parity:
 Known gaps:
 
 - The rollout materializer writes direct difference matrices rather than padded `optimal_rollouts` and `subpar_rollouts` tensors. This is solver-ready and avoids ragged PV padding, but a future report builder may still want optional padded trajectory tensors for visualization.
-- FEN-only activation dumps still call `encode_board(board, [])`; use `--records` for PGN-derived human games and MCTS trajectory dumps when history matters.
+- FEN-only activation dumps and FEN-only dynamic roots still use history-poor inputs. Use PGN-derived records (`--records` for activation dumps and `--root-records` for MCTS roots) when LC0 history planes matter.
 - Static puzzle-tag matching is useful for interpretation, but it is not the unsupervised discovery signal used by Schut et al.
 - Teachability filtering is not implemented. We need a weaker LC0 checkpoint or student model, prototype curricula, KL distillation, and top-1 overlap lift against random-prototype baselines.
 - The exact direct flat sparse CVXPY/SCS solve still does not scale comfortably. Screened flat solves are now practical for larger validation runs, but this is an approximation because feature screening constrains the support before solving the original L1 objective.
@@ -54,20 +55,26 @@ Known gaps:
 
 ## Next Work Items
 
-1. Run and interpret screened flat feature-cap sweeps.
+1. Add data manifests and richer MCTS metadata.
+   Lock `human_reference_v1`, `machine_reference_v1`, and `dynamic_roots_v1` manifests, and record available UCI metadata such as depth, nodes, seldepth, nps, hashfull, WDL when exposed, LC0 version, backend, and weights checksum. Do not guess visits or policy priors if LC0 UCI does not expose them.
+
+2. Add dynamic concept-family generation.
+   Cluster materialized rollout differences, solve one screened sparse direction per cluster, and report bootstrap cosine stability so the dynamic path can discover a library of candidate concepts instead of one global direction.
+
+3. Run and interpret screened flat feature-cap sweeps.
    The first sweep favors `abs_mean_2048` on held-out constraint/margin, but this is a 40-pair run. Repeat after scaling MCTS pairs and include random/shuffled causal controls before fixing defaults.
 
-2. Scale the screened flat report to more LC0 rollout pairs.
+4. Scale the screened flat report to more LC0 rollout pairs.
    Use `tools/run_dynamic_gpu_pipeline.py` on a CUDA GCP machine with top computer championship PGNs and/or top-human PGNs, increase `max_pairs`, shard LC0 MCTS extraction where needed, and keep command/environment metadata in `RUN_METADATA.md`.
 
-3. Improve causal patch calibration.
+5. Improve causal patch calibration.
    Sweep `alpha`, compare normalized `direction` vs `raw_direction`, and report policy-margin/top-1 changes against random and shuffled controls. The first larger mean-pooled run had near-zero margin movement, so this needs quantitative calibration before teachability claims.
 
-4. Scale random and shuffled baselines.
+6. Scale random and shuffled baselines.
    The baseline tool now supports random sparse vectors, shuffled-label projections, and optional shuffled sparse solves. Run it on larger dynamic datasets and add held-out train/test splits by root position.
 
-5. Add teachability evaluation.
-   Prototype and curriculum export now exist for dynamic concepts. Next, train a small student or weaker LC0 checkpoint on selected prototypes with KL to the teacher policy and report top-1 overlap lift against random prototype curricula.
+7. Add teachability evaluation.
+   Prototype and curriculum export now exist for dynamic concepts. Next, train a frozen-trunk student adapter on selected prototypes with KL to the teacher policy and report top-1 overlap lift against random prototype curricula.
 
 ## GCP Compute Policy
 
@@ -104,3 +111,4 @@ Every GCP run should write outputs under `data/runs/<RUN_ID>/` and record the ma
 - 2026-04-28: Review fixes for the sweep tool passed `tests/test_sweep_dynamic_screening.py`, full pytest, and a quick no-policy GCP validation at `data/runs/gcp_dynamic_large_20260427_174945/concepts/screening_sweep_20260428_nopolicy_check`. Fixes applied reverse-sign sweeps correctly, made policy-margin row validation fail fast when requested policy rows are all invalid, and added policy metadata to summaries/reports.
 - 2026-04-28: GPU-oriented dynamic wrapper tests passed; `.venv/bin/python -m py_compile tools/run_dynamic_gpu_pipeline.py tests/test_run_dynamic_gpu_pipeline.py`, `.venv/bin/python -m pytest tests/test_run_dynamic_gpu_pipeline.py -q`, and `.venv/bin/python -m pytest -q` passed. A local BT4 JAX forward smoke ran on `gpu` and returned policy `(1, 1858)`, WDL `(1, 3)`, and MLH `(1, 1)`. Runtime inspection on this machine reports JAX CUDA visibility, but LC0 is not present at `/tmp/lc0-src/build/release/lc0`.
 - 2026-04-28: Non-GCP GPU runbook added with current public source URLs. The latest official LC0 release remains v0.32.1, and the latest Lichess standard rated dump checked today is `lichess_db_standard_rated_2026-03.pgn.zst`.
+- 2026-05-05: History-faithful dynamic root records implemented. Focused tests passed: `.venv/bin/python -m pytest tests/test_mcts_rollouts.py tests/test_build_mcts_pairs.py tests/test_pair_builders.py tests/test_dynamic_splits.py tests/test_run_dynamic_gpu_pipeline.py tests/test_dynamic_policy_margin_cli.py tests/test_sweep_dynamic_screening.py -q` (`33 passed`). Full suite passed: `.venv/bin/python -m pytest -q` (`93` collected tests).

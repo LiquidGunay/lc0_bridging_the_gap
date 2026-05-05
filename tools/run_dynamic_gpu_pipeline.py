@@ -10,6 +10,7 @@ metadata around those tools.
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 import datetime as _dt
 import json
 import os
@@ -113,6 +114,35 @@ def _iter_fens_from_pgn(path: Path, *, ply_stride: int):
                 ply_idx += 1
 
 
+def _iter_records_from_pgn(path: Path, *, ply_stride: int, history_len: int):
+    with path.open("r", encoding="utf-8", errors="ignore") as pgn:
+        game_idx = 0
+        while True:
+            game = chess.pgn.read_game(pgn)
+            if game is None:
+                break
+            board = game.board()
+            history = [board.fen()]
+            game_id = game.headers.get("Site") or game.headers.get("Event") or f"game_{game_idx}"
+            ply_idx = 0
+            for move in game.mainline_moves():
+                board.push(move)
+                history.append(board.fen())
+                if ply_idx % ply_stride == 0:
+                    ply = board.ply()
+                    yield {
+                        "fen": board.fen(),
+                        "history_fens": history[-history_len:],
+                        "game_id": game_id,
+                        "game_index": game_idx,
+                        "ply": ply,
+                        "source": str(path),
+                        "record_id": f"{path.name}:game_{game_idx:08d}:ply_{ply:04d}",
+                    }
+                ply_idx += 1
+            game_idx += 1
+
+
 def _write_raw_candidates(
     *,
     fens_paths: list[Path],
@@ -141,6 +171,77 @@ def _write_raw_candidates(
                 if max_positions is not None and written >= max_positions:
                     return written
     return written
+
+
+def _write_raw_candidate_records(
+    *,
+    fens_paths: list[Path],
+    pgn_paths: list[Path],
+    out_records: Path,
+    out_fens: Path,
+    max_positions: int | None,
+    ply_stride: int,
+    history_len: int,
+) -> int:
+    out_records.parent.mkdir(parents=True, exist_ok=True)
+    out_fens.parent.mkdir(parents=True, exist_ok=True)
+    written = 0
+    with out_records.open("w", encoding="utf-8") as records_out:
+        with out_fens.open("w", encoding="utf-8") as fens_out:
+            for fen_path in fens_paths:
+                with fen_path.open("r", encoding="utf-8") as handle:
+                    for line_idx, line in enumerate(handle):
+                        fen = line.strip()
+                        if not fen:
+                            continue
+                        record = {
+                            "fen": fen,
+                            "history_fens": [fen],
+                            "source": str(fen_path),
+                            "record_id": f"{fen_path.name}:line_{line_idx:08d}",
+                        }
+                        records_out.write(json.dumps(record, sort_keys=True) + "\n")
+                        fens_out.write(fen + "\n")
+                        written += 1
+                        if max_positions is not None and written >= max_positions:
+                            return written
+            for pgn_path in pgn_paths:
+                for record in _iter_records_from_pgn(
+                    pgn_path,
+                    ply_stride=ply_stride,
+                    history_len=history_len,
+                ):
+                    records_out.write(json.dumps(record, sort_keys=True) + "\n")
+                    fens_out.write(record["fen"] + "\n")
+                    written += 1
+                    if max_positions is not None and written >= max_positions:
+                        return written
+    return written
+
+
+def _filter_records_by_fens(records_path: Path, fens_path: Path, out_path: Path) -> int:
+    keep_counts: Counter[str] = Counter()
+    with fens_path.open("r", encoding="utf-8") as handle:
+        for line in handle:
+            fen = line.strip()
+            if fen:
+                keep_counts[fen] += 1
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    kept = 0
+    with records_path.open("r", encoding="utf-8") as inp:
+        with out_path.open("w", encoding="utf-8") as out:
+            for line in inp:
+                if not line.strip():
+                    continue
+                record = json.loads(line)
+                fen = str(record.get("fen", ""))
+                if keep_counts[fen] <= 0:
+                    continue
+                out.write(json.dumps(record, sort_keys=True) + "\n")
+                keep_counts[fen] -= 1
+                kept += 1
+    return kept
 
 
 def _write_shard(src: Path, dst: Path, *, shard_count: int, shard_index: int) -> int:
@@ -263,17 +364,34 @@ def _skip_stage(args: argparse.Namespace, outputs: list[Path], marker_path: Path
 
 
 def _prepare_roots(args: argparse.Namespace, run_dir: Path) -> dict[str, Any]:
+    use_root_records = bool(args.pgn)
     raw_roots = run_dir / "candidate_roots.raw.fens"
     filtered_roots = run_dir / "candidate_roots.filtered.fens"
+    raw_records = run_dir / "candidate_roots.raw.records.jsonl"
+    filtered_records = run_dir / "candidate_roots.filtered.records.jsonl"
     shard_roots = run_dir / (
         f"candidate_roots.shard_{args.shard_index:03d}_of_{args.shard_count:03d}.fens"
     )
-    roots_path = shard_roots if args.shard_count > 1 else filtered_roots
+    shard_records = run_dir / (
+        f"candidate_roots.shard_{args.shard_index:03d}_of_{args.shard_count:03d}.records.jsonl"
+    )
+    if use_root_records:
+        roots_path = shard_records if args.shard_count > 1 else filtered_records
+        roots_arg = "--root-records"
+        input_mode = "root_records"
+    else:
+        roots_path = shard_roots if args.shard_count > 1 else filtered_roots
+        roots_arg = "--fens"
+        input_mode = "fens"
 
     if args.resume and roots_path.exists():
         return {
+            "input_mode": input_mode,
+            "root_arg": roots_arg,
             "raw_roots": raw_roots,
             "filtered_roots": filtered_roots,
+            "raw_records": raw_records if use_root_records else None,
+            "filtered_records": filtered_records if use_root_records else None,
             "roots": roots_path,
             "raw_count": _line_count(raw_roots) if raw_roots.exists() else None,
             "filtered_count": _line_count(filtered_roots) if filtered_roots.exists() else None,
@@ -283,13 +401,24 @@ def _prepare_roots(args: argparse.Namespace, run_dir: Path) -> dict[str, Any]:
 
     fens_paths = [Path(path) for path in args.fens]
     pgn_paths = [Path(path) for path in args.pgn]
-    raw_count = _write_raw_candidates(
-        fens_paths=fens_paths,
-        pgn_paths=pgn_paths,
-        out_path=raw_roots,
-        max_positions=args.max_candidate_positions,
-        ply_stride=args.ply_stride,
-    )
+    if use_root_records:
+        raw_count = _write_raw_candidate_records(
+            fens_paths=fens_paths,
+            pgn_paths=pgn_paths,
+            out_records=raw_records,
+            out_fens=raw_roots,
+            max_positions=args.max_candidate_positions,
+            ply_stride=args.ply_stride,
+            history_len=args.history_len,
+        )
+    else:
+        raw_count = _write_raw_candidates(
+            fens_paths=fens_paths,
+            pgn_paths=pgn_paths,
+            out_path=raw_roots,
+            max_positions=args.max_candidate_positions,
+            ply_stride=args.ply_stride,
+        )
     filtered_count = filter_fens(
         str(raw_roots),
         out_fens=str(filtered_roots),
@@ -306,7 +435,18 @@ def _prepare_roots(args: argparse.Namespace, run_dir: Path) -> dict[str, Any]:
         progress_every=args.prepare_progress_every,
         progress_label="Prepared roots",
     )
-    if args.shard_count > 1:
+    if use_root_records:
+        filtered_count = _filter_records_by_fens(raw_records, filtered_roots, filtered_records)
+        if args.shard_count > 1:
+            root_count = _write_shard(
+                filtered_records,
+                shard_records,
+                shard_count=args.shard_count,
+                shard_index=args.shard_index,
+            )
+        else:
+            root_count = filtered_count
+    elif args.shard_count > 1:
         root_count = _write_shard(
             filtered_roots,
             shard_roots,
@@ -317,8 +457,12 @@ def _prepare_roots(args: argparse.Namespace, run_dir: Path) -> dict[str, Any]:
         root_count = filtered_count
 
     return {
+        "input_mode": input_mode,
+        "root_arg": roots_arg,
         "raw_roots": raw_roots,
         "filtered_roots": filtered_roots,
+        "raw_records": raw_records if use_root_records else None,
+        "filtered_records": filtered_records if use_root_records else None,
         "roots": roots_path,
         "raw_count": raw_count,
         "filtered_count": filtered_count,
@@ -344,6 +488,7 @@ def _metadata_markdown(summary: dict[str, Any]) -> str:
         f"- jax_devices: `{summary['runtime'].get('jax_devices', [])}`",
         f"- lc0_backend_resolved: `{summary.get('lc0_backend_resolved')}`",
         f"- weights: `{summary['weights']}`",
+        f"- root_input_mode: `{summary['roots'].get('input_mode')}`",
         f"- roots: `{summary['roots'].get('roots')}`",
         f"- root_count: {summary['roots'].get('root_count')}",
         f"- nodes: {summary['mcts'].get('nodes')}",
@@ -561,7 +706,7 @@ def main(argv: list[str] | None = None) -> int:
         cmd = [
             args.python,
             "tools/build_mcts_pairs.py",
-            "--fens",
+            roots["root_arg"],
             str(roots["roots"]),
             "--out-jsonl",
             str(pairs_jsonl),

@@ -15,6 +15,7 @@ from lc0jax.interpretability.dynamic_causal import policy_margin_report
 from lc0jax.interpretability.dynamic_evaluation import dynamic_evaluation_report
 from lc0jax.interpretability.dynamic_prototypes import dynamic_prototype_report
 from lc0jax.interpretability.dynamic_teachability import teachability_curriculum_records
+from lc0jax.interpretability.pair_builders import normalize_history_fens
 
 try:
     import chess
@@ -146,6 +147,10 @@ def _load_pair_rows(
     if missing:
         raise KeyError(f"pairs.npz missing required metadata keys: {missing}")
     rows = {key: data[key].tolist() for key in required}
+    if "root_history_fens" in data:
+        rows["root_history_fens"] = data["root_history_fens"].tolist()
+    else:
+        rows["root_history_fens"] = [[fen] for fen in rows["root_fens"]]
     count = min(len(rows["root_fens"]), len(rows["best_moves"]), len(rows["subpar_moves"]))
     indices = np.arange(count)
     if max_pairs is not None and count > max_pairs:
@@ -167,17 +172,25 @@ def _policy_rows(path: Path, *, max_pairs: int | None, seed: int) -> dict[str, A
     subpar_indices = []
     legal_masks = []
     planes = []
-    valid_rows = {"root_fens": [], "best_moves": [], "subpar_moves": []}
+    valid_rows = {
+        "root_fens": [],
+        "root_history_fens": [],
+        "best_moves": [],
+        "subpar_moves": [],
+    }
     valid_indices = []
     skipped = 0
-    for sampled_idx, root_fen, best_move, subpar_move in zip(
+    for sampled_idx, root_fen, root_history, best_move, subpar_move in zip(
         sampled_indices,
         rows["root_fens"],
+        rows["root_history_fens"],
         rows["best_moves"],
         rows["subpar_moves"],
     ):
         try:
             board = chess.Board(str(root_fen))
+            history_fens = normalize_history_fens(root_history, str(root_fen))
+            history_boards = [chess.Board(fen) for fen in history_fens]
             best_idx = move_to_policy_index(str(best_move), "lc0_1858")
             subpar_idx = move_to_policy_index(str(subpar_move), "lc0_1858")
             best_chess_move = chess.Move.from_uci(str(best_move))
@@ -191,7 +204,7 @@ def _policy_rows(path: Path, *, max_pairs: int | None, seed: int) -> dict[str, A
         planes.append(
             encode_board(
                 board,
-                [],
+                history_boards,
                 planes_layout="nchw",
                 input_format="INPUT_CLASSICAL_112_PLANE",
             )
@@ -200,6 +213,7 @@ def _policy_rows(path: Path, *, max_pairs: int | None, seed: int) -> dict[str, A
         subpar_indices.append(subpar_idx)
         legal_masks.append(legal_move_mask(board, "lc0_1858"))
         valid_rows["root_fens"].append(str(root_fen))
+        valid_rows["root_history_fens"].append(history_fens)
         valid_rows["best_moves"].append(str(best_move))
         valid_rows["subpar_moves"].append(str(subpar_move))
         valid_indices.append(int(sampled_idx))

@@ -100,6 +100,25 @@ def trajectory_keys_for_line(line: dict) -> list[str]:
     return [str(fen) for fen in line["fens"]]
 
 
+def normalize_history_fens(value, root_fen: str) -> list[str]:
+    """Return a FEN history list ending at ``root_fen``."""
+    if value is None:
+        items = []
+    elif isinstance(value, np.ndarray):
+        items = value.tolist()
+    elif isinstance(value, str):
+        items = [value] if value else []
+    elif isinstance(value, (list, tuple)):
+        items = list(value)
+    else:
+        items = []
+    history = [str(item) for item in items if str(item)]
+    root = str(root_fen)
+    if not history or history[-1] != root:
+        history.append(root)
+    return history
+
+
 def materialize_rollout_differences(
     records: Iterable[dict],
     activation_index: dict[str, np.ndarray],
@@ -117,6 +136,12 @@ def materialize_rollout_differences(
     subpar_scores = []
     best_pvs = []
     subpar_pvs = []
+    root_history_fens = []
+    root_game_ids = []
+    root_game_indices = []
+    root_plies = []
+    root_sources = []
+    root_record_ids = []
     skipped = 0
     consumed = 0
 
@@ -162,6 +187,12 @@ def materialize_rollout_differences(
             subpar_scores.append(subpar_line.get("score_cp"))
             best_pvs.append(" ".join(best_line.get("pv", [])))
             subpar_pvs.append(" ".join(subpar_line.get("pv", [])))
+            root_history_fens.append(record.get("root_history_fens", []))
+            root_game_ids.append(record.get("root_game_id", ""))
+            root_game_indices.append(record.get("root_game_index"))
+            root_plies.append(record.get("root_ply"))
+            root_sources.append(record.get("root_source", ""))
+            root_record_ids.append(record.get("root_record_id", ""))
 
     if not differences:
         raise ValueError("No rollout differences could be materialized")
@@ -175,6 +206,12 @@ def materialize_rollout_differences(
         "subpar_score_cp": np.asarray(subpar_scores, dtype=object),
         "best_pv": np.asarray(best_pvs, dtype=object),
         "subpar_pv": np.asarray(subpar_pvs, dtype=object),
+        "root_history_fens": np.asarray(root_history_fens, dtype=object),
+        "root_game_ids": np.asarray(root_game_ids, dtype=object),
+        "root_game_indices": np.asarray(root_game_indices, dtype=object),
+        "root_plies": np.asarray(root_plies, dtype=object),
+        "root_sources": np.asarray(root_sources, dtype=object),
+        "root_record_ids": np.asarray(root_record_ids, dtype=object),
         "records_consumed": np.asarray(consumed, dtype=np.int32),
         "records_or_lines_skipped": np.asarray(skipped, dtype=np.int32),
     }
