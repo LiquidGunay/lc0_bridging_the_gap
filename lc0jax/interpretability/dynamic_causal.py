@@ -82,3 +82,27 @@ def policy_margin_report(
         "top1_legal_masked": bool(legal_masks is not None),
         "examples": examples,
     }
+
+
+def control_calibration_report(
+    target_report: dict[str, Any],
+    control_reports: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Compare a learned-direction policy-margin report to control directions."""
+    if not control_reports:
+        return {"control_count": 0}
+    control_delta = np.asarray(
+        [report["mean_delta_margin"] for report in control_reports],
+        dtype=np.float64,
+    )
+    target_delta = float(target_report["mean_delta_margin"])
+    return {
+        "control_count": int(control_delta.shape[0]),
+        "target_mean_delta_margin": target_delta,
+        "mean_control_delta_margin": float(np.mean(control_delta)),
+        "median_control_delta_margin": float(np.median(control_delta)),
+        "max_control_delta_margin": float(np.max(control_delta)),
+        "min_control_delta_margin": float(np.min(control_delta)),
+        "target_minus_mean_control_delta_margin": float(target_delta - np.mean(control_delta)),
+        "target_exceeds_control_fraction": float(np.mean(target_delta > control_delta)),
+    }

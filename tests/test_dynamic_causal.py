@@ -1,6 +1,9 @@
 import numpy as np
 
-from lc0jax.interpretability.dynamic_causal import policy_margin_report
+from lc0jax.interpretability.dynamic_causal import (
+    control_calibration_report,
+    policy_margin_report,
+)
 
 
 def test_policy_margin_report_summarizes_patch_effects():
@@ -57,3 +60,19 @@ def test_policy_margin_report_masks_top1_to_legal_moves():
     assert report["examples"][0]["base_top_index"] == 1
     assert report["examples"][0]["patched_top_index"] == 1
     assert report["top1_change_rate"] == 0.0
+
+
+def test_control_calibration_report_compares_target_to_controls():
+    report = control_calibration_report(
+        {"mean_delta_margin": 2.0},
+        [
+            {"mean_delta_margin": 1.0},
+            {"mean_delta_margin": 3.0},
+        ],
+    )
+
+    assert report["control_count"] == 2
+    assert report["target_mean_delta_margin"] == 2.0
+    assert report["mean_control_delta_margin"] == 2.0
+    assert report["target_minus_mean_control_delta_margin"] == 0.0
+    assert report["target_exceeds_control_fraction"] == 0.5

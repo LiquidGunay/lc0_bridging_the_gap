@@ -26,7 +26,7 @@ from .dynamic_baselines import (
     evaluate_direction,
     random_sparse_directions,
 )
-from .dynamic_causal import policy_margin_report
+from .dynamic_causal import control_calibration_report, policy_margin_report
 from .dynamic_evaluation import dynamic_evaluation_report
 from .dynamic_families import (
     bootstrap_family_stability,
@@ -89,6 +89,7 @@ __all__ = [
     "evaluate_direction",
     "random_sparse_directions",
     "policy_margin_report",
+    "control_calibration_report",
     "dynamic_evaluation_report",
     "bootstrap_family_stability",
     "cluster_difference_rows",
