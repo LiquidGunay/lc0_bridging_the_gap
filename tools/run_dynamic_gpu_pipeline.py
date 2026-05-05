@@ -24,6 +24,7 @@ from typing import Any
 import chess.pgn
 
 from lc0jax.interpretability.datasets import filter_fens
+from lc0jax.interpretability.manifests import dynamic_roots_manifest
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -69,6 +70,29 @@ def _work_dir_for_run(run_dir: Path, args: argparse.Namespace) -> Path:
     if args.shard_count <= 1:
         return run_dir
     return run_dir / "shards" / _shard_label(args)
+
+
+def _root_history_summary(args: argparse.Namespace, *, input_mode: str) -> dict[str, Any]:
+    has_fen_sources = bool(args.fens)
+    has_pgn_sources = bool(args.pgn)
+    if input_mode == "root_records" and has_pgn_sources and not has_fen_sources:
+        history_mode = "pgn_pre_root"
+        root_history_complete = True
+    elif input_mode == "root_records" and has_pgn_sources and has_fen_sources:
+        history_mode = "mixed_pgn_and_root_only_fen"
+        root_history_complete = False
+    else:
+        history_mode = "root_only_fen"
+        root_history_complete = False
+    return {
+        "source_counts": {
+            "fen_input_paths": len(args.fens),
+            "pgn_input_paths": len(args.pgn),
+        },
+        "history_mode": history_mode,
+        "root_history_complete": root_history_complete,
+        "contains_history_poor_roots": not root_history_complete,
+    }
 
 
 def _stage_marker(work_dir: Path, stage: str) -> Path:
@@ -397,6 +421,7 @@ def _prepare_roots(args: argparse.Namespace, run_dir: Path) -> dict[str, Any]:
             "filtered_count": _line_count(filtered_roots) if filtered_roots.exists() else None,
             "root_count": _line_count(roots_path),
             "skipped": True,
+            **_root_history_summary(args, input_mode=input_mode),
         }
 
     fens_paths = [Path(path) for path in args.fens]
@@ -468,6 +493,7 @@ def _prepare_roots(args: argparse.Namespace, run_dir: Path) -> dict[str, Any]:
         "filtered_count": filtered_count,
         "root_count": root_count,
         "skipped": False,
+        **_root_history_summary(args, input_mode=input_mode),
     }
 
 
@@ -494,11 +520,67 @@ def _metadata_markdown(summary: dict[str, Any]) -> str:
         f"- nodes: {summary['mcts'].get('nodes')}",
         f"- multipv: {summary['mcts'].get('multipv')}",
         f"- max_pairs: {summary['mcts'].get('max_pairs')}",
+        f"- dynamic_roots_manifest: `{summary['outputs'].get('dynamic_roots_manifest')}`",
         "",
         "Command log: `commands.jsonl`",
         "",
     ]
     return "\n".join(lines)
+
+
+def _run_manifest(args: argparse.Namespace) -> dict[str, Any]:
+    if args.dry_run:
+        status = "planned"
+    elif args.stop_after != STAGES[-1]:
+        status = "partial"
+    else:
+        status = "completed"
+    return {
+        "status": status,
+        "dry_run": args.dry_run,
+        "resume": args.resume,
+        "stop_after": args.stop_after,
+        "stages_requested": [stage for stage in STAGES if _runs_stage(args.stop_after, stage)],
+    }
+
+
+def _output_status(outputs: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    status = {}
+    for key, value in outputs.items():
+        path = Path(value)
+        status[key] = {"path": path, "exists": path.exists()}
+    return status
+
+
+def _filter_manifest(args: argparse.Namespace) -> dict[str, Any]:
+    return {
+        "max_candidate_positions": args.max_candidate_positions,
+        "max_roots": args.max_roots,
+        "ply_stride": args.ply_stride,
+        "min_ply": args.min_ply,
+        "max_ply": args.max_ply,
+        "min_phase": args.min_phase,
+        "max_phase": args.max_phase,
+        "min_pieces": args.min_pieces,
+        "max_pieces": args.max_pieces,
+        "min_nonpawn": args.min_nonpawn,
+        "max_nonpawn": args.max_nonpawn,
+        "dedupe": args.dedupe,
+    }
+
+
+def _search_manifest(args: argparse.Namespace, *, resolved_threads: int) -> dict[str, Any]:
+    return {
+        "nodes": args.nodes,
+        "movetime_ms": args.movetime_ms,
+        "multipv": args.multipv,
+        "max_pairs": args.max_pairs,
+        "max_depth": args.max_depth,
+        "min_delta_cp": args.min_delta_cp,
+        "max_delta_cp": args.max_delta_cp,
+        "threads": resolved_threads,
+        "history_len": args.history_len,
+    }
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -912,6 +994,28 @@ def main(argv: list[str] | None = None) -> int:
             marker_outputs=sweep_outputs,
         )
 
+    manifest_path = work_dir / "dynamic_roots_manifest.json"
+    summary["outputs"]["dynamic_roots_manifest"] = manifest_path
+    output_status = _output_status(summary["outputs"])
+    output_status["dynamic_roots_manifest"]["exists"] = True
+    manifest = dynamic_roots_manifest(
+        run_id=run_id,
+        created_utc=summary["created_utc"],
+        run=_run_manifest(args),
+        inputs=summary["inputs"],
+        roots=roots,
+        filters=_filter_manifest(args),
+        search=_search_manifest(args, resolved_threads=resolved_threads),
+        model={"weights": args.weights},
+        lc0={
+            "binary": args.lc0,
+            "backend": lc0_backend,
+            "backend_opts": args.backend_opts,
+        },
+        outputs=summary["outputs"],
+        output_status=output_status,
+    )
+    _json_dump(manifest_path, manifest)
     _json_dump(work_dir / "run_summary.json", summary)
     (work_dir / "RUN_METADATA.md").write_text(_metadata_markdown(summary), encoding="utf-8")
     print(f"Run directory: {work_dir}", flush=True)

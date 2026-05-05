@@ -38,8 +38,13 @@ Write outputs locally on the GPU box:
 - Sharded run work directories: `data/runs/<RUN_ID>/shards/shard_XXX_of_YYY/`
 - Command log per work directory: `commands.jsonl`
 - Reproducibility metadata per work directory: `RUN_METADATA.md`
+- Locked dynamic-root manifest per work directory: `dynamic_roots_manifest.json`
 - Summary per work directory: `run_summary.json`
 - Recommended artifact bundle: `artifacts/<RUN_ID>_artifacts.tar.zst`
+
+`dynamic_roots_manifest.json` records whether the run is planned, partial, or
+completed, which outputs existed when the manifest was written, and whether the
+root set is fully history-faithful or contains root-only FEN records.
 
 There is no project-owned public write bucket. If you want to upload results,
 use your own destination, for example:

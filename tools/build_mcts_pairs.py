@@ -6,12 +6,14 @@ import argparse
 import hashlib
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
 
 import chess.engine
 
+from lc0jax.interpretability.manifests import sha256_file
 from lc0jax.interpretability.mcts_rollouts import (
     activation_records_for_line,
     build_rollout_pair_record,
@@ -83,6 +85,43 @@ def _line_id_for_root(root: dict[str, Any], *, source_line: int) -> str:
         f"{label}|{root.get('fen', '')}|{source_line}".encode("utf-8")
     ).hexdigest()[:16]
     return f"{slug}_{digest}"
+
+
+def _lc0_version(lc0: str, *, timeout: float) -> str | None:
+    lc0_path = Path(lc0)
+    if not lc0_path.exists():
+        return None
+    try:
+        completed = subprocess.run(
+            [str(lc0_path), "--help"],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    text = (completed.stdout or completed.stderr).strip()
+    return text.splitlines()[0] if text else None
+
+
+def _search_metadata(args) -> dict[str, Any]:
+    return {
+        "lc0": args.lc0,
+        "lc0_version": _lc0_version(args.lc0, timeout=min(args.uci_timeout, 10.0)),
+        "weights": args.weights,
+        "weights_sha256": sha256_file(args.weights),
+        "nodes": args.nodes,
+        "movetime_ms": args.movetime_ms,
+        "multipv": args.multipv,
+        "max_depth": args.max_depth,
+        "min_delta_cp": args.min_delta_cp,
+        "max_delta_cp": args.max_delta_cp,
+        "threads": args.threads,
+        "backend": args.backend,
+        "backend_opts": args.backend_opts,
+        "uci_timeout": args.uci_timeout,
+    }
 
 
 def _configure_engine(args) -> chess.engine.SimpleEngine:
@@ -183,6 +222,7 @@ def main() -> int:
     seen = 0
     kept = 0
     failed = 0
+    search_metadata = _search_metadata(args)
 
     trajectory_records_handle = None
     if args.out_trajectory_records:
@@ -230,6 +270,7 @@ def main() -> int:
                         root_ply=root["ply"],
                         root_source=root["source"],
                         root_record_id=root["record_id"],
+                        search_metadata=search_metadata,
                     )
                 except (ValueError, chess.engine.EngineError, TimeoutError) as exc:
                     failed += 1

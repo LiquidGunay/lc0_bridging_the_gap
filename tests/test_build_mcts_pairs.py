@@ -1,3 +1,4 @@
+import hashlib
 import json
 import sys
 
@@ -100,9 +101,16 @@ def test_build_mcts_pairs_root_records_preserve_pre_root_history(tmp_path, monke
     )
     out_jsonl = tmp_path / "pairs.jsonl"
     out_records = tmp_path / "trajectory.records.jsonl"
+    weights = tmp_path / "weights.pb.gz"
+    weights.write_bytes(b"weights")
 
     def fake_build(_engine, fen, _limit, **kwargs):
         assert fen == root_fen
+        assert kwargs["search_metadata"]["weights"] == str(weights)
+        assert kwargs["search_metadata"]["weights_sha256"] == hashlib.sha256(
+            b"weights"
+        ).hexdigest()
+        assert kwargs["search_metadata"]["multipv"] == 4
         return RolloutPairRecord(
             root_fen=fen,
             node_budget=kwargs["node_budget"],
@@ -130,6 +138,7 @@ def test_build_mcts_pairs_root_records_preserve_pre_root_history(tmp_path, monke
             root_ply=kwargs["root_ply"],
             root_source=kwargs["root_source"],
             root_record_id=kwargs["root_record_id"],
+            search_metadata=kwargs["search_metadata"],
         )
 
     monkeypatch.setattr(build_mcts_pairs, "_configure_engine", lambda _args: _FakeEngine())
@@ -147,6 +156,8 @@ def test_build_mcts_pairs_root_records_preserve_pre_root_history(tmp_path, monke
             str(out_records),
             "--lc0",
             "fake-lc0",
+            "--weights",
+            str(weights),
             "--history-len",
             "3",
         ],
@@ -164,6 +175,10 @@ def test_build_mcts_pairs_root_records_preserve_pre_root_history(tmp_path, monke
     assert pair["root_ply"] == board.ply()
     assert pair["root_source"] == "tiny.pgn"
     assert pair["root_record_id"] == "record-a"
+    assert pair["search"]["weights"] == str(weights)
+    assert pair["search"]["weights_sha256"] == hashlib.sha256(b"weights").hexdigest()
+    assert pair["search"]["nodes"] == 800
+    assert pair["search"]["multipv"] == 4
     assert records[0]["history_fens"] == [start_fen, root_fen]
     assert records[1]["history_fens"] == [start_fen, root_fen, best_board.fen()]
     assert records[2]["history_fens"] == [start_fen, root_fen]

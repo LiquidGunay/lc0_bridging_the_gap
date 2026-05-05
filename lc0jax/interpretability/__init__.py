@@ -43,8 +43,10 @@ from .dynamic_splits import (
     subset_pairs_payload,
 )
 from .dynamic_teachability import teachability_curriculum_records
+from .manifests import dynamic_roots_manifest, sha256_file
 from .mcts_rollouts import (
     activation_records_for_line,
+    board_from_root_history,
     build_rollout_pair_record,
     pv_to_fens,
 )
@@ -95,8 +97,11 @@ __all__ = [
     "split_pair_indices",
     "subset_pairs_payload",
     "build_rollout_pair_record",
+    "board_from_root_history",
     "activation_records_for_line",
     "pv_to_fens",
+    "dynamic_roots_manifest",
+    "sha256_file",
     "iter_rollout_pair_records",
     "load_activation_index",
     "materialize_rollout_differences",

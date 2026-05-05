@@ -66,6 +66,20 @@ def test_subset_pairs_payload_preserves_non_row_metadata():
         ),
         "root_game_ids": np.asarray(["ga", "ga", "gb", "gc", "gc", "gd"], dtype=object),
         "best_moves": np.asarray(["m0", "m1", "m2", "m3", "m4", "m5"], dtype=object),
+        "score_delta_cp": np.asarray([10, 11, 12, 13, 14, 15], dtype=object),
+        "best_wdl": np.asarray(
+            [{"wins": idx, "draws": 0, "losses": 0} for idx in range(6)],
+            dtype=object,
+        ),
+        "subpar_wdl": np.asarray(
+            [{"wins": 0, "draws": idx, "losses": 0} for idx in range(6)],
+            dtype=object,
+        ),
+        "best_multipv_rank": np.asarray([1, 1, 1, 1, 1, 1], dtype=object),
+        "subpar_multipv_rank": np.asarray([2, 3, 2, 4, 2, 3], dtype=object),
+        "best_depth": np.asarray([8, 8, 7, 9, 9, 8], dtype=object),
+        "subpar_nodes": np.asarray([90, 91, 92, 93, 94, 95], dtype=object),
+        "best_raw_info_keys": np.asarray([["depth", "nodes"]] * 6, dtype=object),
         "feature_names": np.asarray(["f0", "f1", "f2", "f3", "f4", "f5"], dtype=object),
         "sample_weights": np.arange(6),
         "records_consumed": np.asarray(12, dtype=np.int32),
@@ -78,6 +92,26 @@ def test_subset_pairs_payload_preserves_non_row_metadata():
     assert subset["root_history_fens"].tolist() == [["pa", "a"], ["pb", "b"], ["pd", "d"]]
     assert subset["root_game_ids"].tolist() == ["ga", "gb", "gd"]
     assert subset["best_moves"].tolist() == ["m0", "m2", "m5"]
+    assert subset["score_delta_cp"].tolist() == [10, 12, 15]
+    assert subset["best_wdl"].tolist() == [
+        {"wins": 0, "draws": 0, "losses": 0},
+        {"wins": 2, "draws": 0, "losses": 0},
+        {"wins": 5, "draws": 0, "losses": 0},
+    ]
+    assert subset["subpar_wdl"].tolist() == [
+        {"wins": 0, "draws": 0, "losses": 0},
+        {"wins": 0, "draws": 2, "losses": 0},
+        {"wins": 0, "draws": 5, "losses": 0},
+    ]
+    assert subset["best_multipv_rank"].tolist() == [1, 1, 1]
+    assert subset["subpar_multipv_rank"].tolist() == [2, 2, 3]
+    assert subset["best_depth"].tolist() == [8, 7, 8]
+    assert subset["subpar_nodes"].tolist() == [90, 92, 95]
+    assert subset["best_raw_info_keys"].tolist() == [
+        ["depth", "nodes"],
+        ["depth", "nodes"],
+        ["depth", "nodes"],
+    ]
     assert subset["feature_names"].tolist() == ["f0", "f1", "f2", "f3", "f4", "f5"]
     assert subset["sample_weights"].tolist() == [0, 1, 2, 3, 4, 5]
     assert int(subset["records_consumed"]) == 12
