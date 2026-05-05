@@ -16,6 +16,7 @@ Implemented toward parity:
 - `lc0jax.interpretability.concepts.solve_screened_sparse_concept_from_differences` adds deterministic feature screening for large flat runs. It solves the same CVXPY objective in a selected feature subspace and expands vectors back to the original feature dimension for downstream evaluation and patching.
 - `lc0jax.interpretability.concepts.dynamic_rollout_differences` aggregates stored optimal/subpar rollout activations into `psi(tau+) - psi(tau-)` rows.
 - `tools/solve_dynamic_concepts.py` solves active or reversed-sign sparse concepts from a stored rollout-pair `.npz` file. Use `--max-features` for screened large-flat solves; selected feature indices and scores are stored in `concept_direction.npz`.
+- `lc0jax.interpretability.dynamic_families` and `tools/solve_dynamic_concept_families.py` cluster materialized dynamic rollout differences, solve one sparse concept vector per cluster, and optionally report bootstrap cosine stability. The CLI writes aggregate `families.npz` plus per-family concept directories that can be fed to held-out evaluation, prototype selection, curriculum export, and policy-margin tools.
 - `tools/sweep_dynamic_screening.py` runs a grid of screened flat solver settings, held-out evaluations, baselines, prototype/curriculum export, and optional policy-margin alpha/direction-key sweeps. It writes per-configuration artifacts plus aggregate `summary.json` and `summary.md`.
 - `lc0jax.interpretability.novelty` and `tools/filter_novel_concepts.py` implement the Schut-style SVD reconstruction comparison between machine and human activation bases.
 - `lc0jax.interpretability.mcts_rollouts` and `tools/build_mcts_pairs.py` provide the first LC0 MultiPV rollout-pair builder. It writes JSONL records with root FEN, optional root-history/provenance metadata, best PV, selected subpar PVs, centipawn scores, optional unique trajectory FENs, and preferred trajectory activation records with rolling history.
@@ -61,8 +62,8 @@ Known gaps:
 1. Add human/machine reference manifests.
    `dynamic_roots_v1` is now written by the dynamic wrapper. Next lock `human_reference_v1` and `machine_reference_v1` manifests with dataset source, rating/time-control filters, dedupe keys, split keys, exclusions, and checksums.
 
-2. Add dynamic concept-family generation.
-   Cluster materialized rollout differences, solve one screened sparse direction per cluster, and report bootstrap cosine stability so the dynamic path can discover a library of candidate concepts instead of one global direction.
+2. Integrate concept-family outputs into downstream reports.
+   Concept-family clustering and per-family sparse solves now exist. Next, run families on a larger dynamic dataset and add family-level held-out/prototype/policy summaries to the aggregate report.
 
 3. Run and interpret screened flat feature-cap sweeps.
    The first sweep favors `abs_mean_2048` on held-out constraint/margin, but this is a 40-pair run. Repeat after scaling MCTS pairs and include random/shuffled causal controls before fixing defaults.
@@ -116,3 +117,4 @@ Every GCP run should write outputs under `data/runs/<RUN_ID>/` and record the ma
 - 2026-04-28: Non-GCP GPU runbook added with current public source URLs. The latest official LC0 release remains v0.32.1, and the latest Lichess standard rated dump checked today is `lichess_db_standard_rated_2026-03.pgn.zst`.
 - 2026-05-05: History-faithful dynamic root records implemented. Focused tests passed: `.venv/bin/python -m pytest tests/test_mcts_rollouts.py tests/test_build_mcts_pairs.py tests/test_pair_builders.py tests/test_dynamic_splits.py tests/test_run_dynamic_gpu_pipeline.py tests/test_dynamic_policy_margin_cli.py tests/test_sweep_dynamic_screening.py -q` (`33 passed`). Full suite passed: `.venv/bin/python -m pytest -q` (`93` collected tests).
 - 2026-05-05: Dynamic MCTS metadata and `dynamic_roots_v1` manifests implemented. Syntax and line-length checks passed for touched Python files. Focused tests passed: `.venv/bin/python -m pytest tests/test_mcts_rollouts.py tests/test_build_mcts_pairs.py tests/test_pair_builders.py tests/test_dynamic_splits.py tests/test_run_dynamic_gpu_pipeline.py tests/test_manifests.py -q` (`31 passed`). Full suite passed: `.venv/bin/python -m pytest -q` (`96` collected tests). `git diff --check` passed.
+- 2026-05-05: Dynamic concept-family generation implemented. Syntax and line-length checks passed for touched Python files. Focused tests passed: `.venv/bin/python -m pytest tests/test_concepts.py tests/test_solve_dynamic_concepts_cli.py tests/test_dynamic_families.py -q` (`9 passed`). Full suite passed: `.venv/bin/python -m pytest -q` (`98` collected tests). `git diff --check` passed.

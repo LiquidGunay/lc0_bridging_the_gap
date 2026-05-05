@@ -315,6 +315,13 @@ cat data/runs/${RUN_ID}/shards/shard_*_of_*/mcts_pairs/trajectory.records.jsonl 
   --max-features 2048 \
   --screening-methods abs_mean \
   --skip-policy-margin
+
+.venv/bin/python tools/solve_dynamic_concept_families.py \
+  --pairs "$MERGED/mcts_pairs/pairs.train.npz" \
+  --out "$MERGED/concepts/dynamic_families" \
+  --clusters 8 \
+  --max-features 2048 \
+  --bootstrap-count 8
 ```
 
 ## Package Results
@@ -341,5 +348,6 @@ After the GPU run finishes, inspect:
 - Number of kept MCTS records in `mcts_pairs/pairs.jsonl`
 - `mcts_pairs/pairs.npz` shape and train/test split sizes
 - `concepts/screening_sweep/summary.md`
+- `concepts/dynamic_families/report.json`
 - Whether `abs_mean_2048` still beats smaller/larger feature caps
 - Whether policy-margin should be rerun on the strongest held-out concept

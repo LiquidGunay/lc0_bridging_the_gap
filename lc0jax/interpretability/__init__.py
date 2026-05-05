@@ -28,6 +28,11 @@ from .dynamic_baselines import (
 )
 from .dynamic_causal import policy_margin_report
 from .dynamic_evaluation import dynamic_evaluation_report
+from .dynamic_families import (
+    bootstrap_family_stability,
+    cluster_difference_rows,
+    solve_dynamic_concept_families,
+)
 from .dynamic_prototypes import (
     dynamic_prototype_report,
     projection_scores,
@@ -85,6 +90,9 @@ __all__ = [
     "random_sparse_directions",
     "policy_margin_report",
     "dynamic_evaluation_report",
+    "bootstrap_family_stability",
+    "cluster_difference_rows",
+    "solve_dynamic_concept_families",
     "dynamic_prototype_report",
     "projection_scores",
     "select_random_indices",
