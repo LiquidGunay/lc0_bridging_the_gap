@@ -322,6 +322,15 @@ cat data/runs/${RUN_ID}/shards/shard_*_of_*/mcts_pairs/trajectory.records.jsonl 
   --clusters 8 \
   --max-features 2048 \
   --bootstrap-count 8
+
+.venv/bin/python tools/dynamic_policy_margin.py \
+  --pairs "$MERGED/mcts_pairs/pairs.test.npz" \
+  --concept "$MERGED/concepts/dynamic_families/family_000" \
+  --pb models/BT4-1024x15x32h-swa-6147500-policytune-332.pb.gz \
+  --out "$MERGED/concepts/dynamic_families/family_000/policy_margin_report.json" \
+  --max-pairs 64 \
+  --control-count 16 \
+  --control-kind random
 ```
 
 ## Package Results
@@ -349,5 +358,6 @@ After the GPU run finishes, inspect:
 - `mcts_pairs/pairs.npz` shape and train/test split sizes
 - `concepts/screening_sweep/summary.md`
 - `concepts/dynamic_families/report.json`
+- `concepts/dynamic_families/family_000/policy_margin_report.json`
 - Whether `abs_mean_2048` still beats smaller/larger feature caps
 - Whether policy-margin should be rerun on the strongest held-out concept

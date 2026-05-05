@@ -30,6 +30,7 @@ Implemented toward parity:
 - `lc0jax.interpretability.dynamic_prototypes` and `tools/select_dynamic_prototypes.py` select top-scoring dynamic concept pair rows plus random controls for future teachability curricula. Prototype selection auto-detects reversed concept runs and preserves row-aligned metadata in selected rows.
 - `lc0jax.interpretability.dynamic_teachability` and `tools/export_teachability_curriculum.py` export prototype/control selections to JSONL records with target/contrast moves and provenance for downstream student-training jobs.
 - `lc0jax.interpretability.dynamic_causal` and `tools/dynamic_policy_margin.py` measure best-vs-subpar policy-logit margin changes before and after patching a dynamic concept direction. Policy-margin CLIs use row-aligned `root_history_fens` when present so BT4 policy checks match PGN-derived root-history inputs.
+- `tools/dynamic_policy_margin.py` can optionally run same-norm random or shuffled control directions and report calibration stats, so learned patch effects are not interpreted without control baselines.
 - `lc0jax.interpretability.dynamic_splits` and `tools/split_dynamic_pairs.py` split dynamic `pairs.npz` files by root FEN without the fullmove counter, preserving known row-aligned arrays and scalar metadata while preventing same-position leakage across train/test.
 - `tools/pgn_to_activation_records.py` writes JSONL records with rolling `history_fens`, and `tools/dump_activations.py --records` passes those boards to LC0 encoding instead of using empty history.
 - `tools/run_full_pipeline.sh` now defaults to history-aware human activation records when the broadcast PGN is available; set `HISTORY_HUMAN_RECORDS=0` to keep the old FEN-only path.
@@ -71,8 +72,8 @@ Known gaps:
 4. Scale the screened flat report to more LC0 rollout pairs.
    Use `tools/run_dynamic_gpu_pipeline.py` on a CUDA GCP machine with top computer championship PGNs and/or top-human PGNs, increase `max_pairs`, shard LC0 MCTS extraction where needed, and keep command/environment metadata in `RUN_METADATA.md`.
 
-5. Improve causal patch calibration.
-   Sweep `alpha`, compare normalized `direction` vs `raw_direction`, and report policy-margin/top-1 changes against random and shuffled controls. The first larger mean-pooled run had near-zero margin movement, so this needs quantitative calibration before teachability claims.
+5. Run calibrated causal patch sweeps.
+   Random/shuffled controls now exist in `tools/dynamic_policy_margin.py`. Next, sweep `alpha`, compare normalized `direction` vs `raw_direction`, and require learned effects to beat controls before using policy-margin results as causal evidence.
 
 6. Scale random and shuffled baselines.
    The baseline tool now supports random sparse vectors, shuffled-label projections, and optional shuffled sparse solves. Run it on larger dynamic datasets and add held-out train/test splits by root position.
@@ -118,3 +119,4 @@ Every GCP run should write outputs under `data/runs/<RUN_ID>/` and record the ma
 - 2026-05-05: History-faithful dynamic root records implemented. Focused tests passed: `.venv/bin/python -m pytest tests/test_mcts_rollouts.py tests/test_build_mcts_pairs.py tests/test_pair_builders.py tests/test_dynamic_splits.py tests/test_run_dynamic_gpu_pipeline.py tests/test_dynamic_policy_margin_cli.py tests/test_sweep_dynamic_screening.py -q` (`33 passed`). Full suite passed: `.venv/bin/python -m pytest -q` (`93` collected tests).
 - 2026-05-05: Dynamic MCTS metadata and `dynamic_roots_v1` manifests implemented. Syntax and line-length checks passed for touched Python files. Focused tests passed: `.venv/bin/python -m pytest tests/test_mcts_rollouts.py tests/test_build_mcts_pairs.py tests/test_pair_builders.py tests/test_dynamic_splits.py tests/test_run_dynamic_gpu_pipeline.py tests/test_manifests.py -q` (`31 passed`). Full suite passed: `.venv/bin/python -m pytest -q` (`96` collected tests). `git diff --check` passed.
 - 2026-05-05: Dynamic concept-family generation implemented. Syntax and line-length checks passed for touched Python files. Focused tests passed: `.venv/bin/python -m pytest tests/test_concepts.py tests/test_solve_dynamic_concepts_cli.py tests/test_dynamic_families.py -q` (`9 passed`). Full suite passed: `.venv/bin/python -m pytest -q` (`98` collected tests). `git diff --check` passed.
+- 2026-05-05: Dynamic policy-margin random/shuffled controls implemented. Syntax and line-length checks passed for touched Python files. Focused tests passed: `.venv/bin/python -m pytest tests/test_dynamic_causal.py tests/test_dynamic_policy_margin_cli.py -q` (`6 passed`). Full suite passed: `.venv/bin/python -m pytest -q` (`100` collected tests). `git diff --check` passed.

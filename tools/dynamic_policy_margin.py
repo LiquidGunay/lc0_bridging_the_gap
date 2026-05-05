@@ -8,7 +8,10 @@ from pathlib import Path
 
 import numpy as np
 
-from lc0jax.interpretability.dynamic_causal import policy_margin_report
+from lc0jax.interpretability.dynamic_causal import (
+    control_calibration_report,
+    policy_margin_report,
+)
 from lc0jax.interpretability.pair_builders import normalize_history_fens
 from lc0jax.modeling.encode import encode_board
 from lc0jax.modeling.inference import forward
@@ -60,6 +63,71 @@ def _batch_indices(total: int, batch_size: int):
         yield start, min(start + batch_size, total)
 
 
+def _control_directions(
+    direction: np.ndarray,
+    *,
+    kind: str,
+    count: int,
+    seed: int,
+) -> list[tuple[str, int, np.ndarray]]:
+    if count <= 0:
+        return []
+    rng = np.random.default_rng(seed)
+    base = np.asarray(direction, dtype=np.float64).reshape(-1)
+    norm = float(np.linalg.norm(base))
+    controls = []
+    for idx in range(count):
+        if kind == "random":
+            control = rng.standard_normal(base.shape)
+            control_norm = float(np.linalg.norm(control))
+            if control_norm > 0.0:
+                control = control * (norm / control_norm)
+        elif kind == "shuffled":
+            control = rng.permutation(base)
+        else:
+            raise ValueError(f"Unsupported control kind: {kind}")
+        controls.append((kind, idx, control.reshape(direction.shape)))
+    return controls
+
+
+def _encode_plane_batches(valid_rows: dict, *, batch_size: int) -> list[np.ndarray]:
+    batches = []
+    for start, stop in _batch_indices(len(valid_rows["root_fens"]), batch_size):
+        planes = []
+        for fen, history_fens in zip(
+            valid_rows["root_fens"][start:stop],
+            valid_rows["root_history_fens"][start:stop],
+        ):
+            board = chess.Board(fen)
+            history_boards = [chess.Board(history_fen) for history_fen in history_fens]
+            planes.append(
+                encode_board(
+                    board,
+                    history_boards,
+                    planes_layout="nchw",
+                    input_format="INPUT_CLASSICAL_112_PLANE",
+                )
+            )
+        batches.append(np.stack(planes, axis=0))
+    return batches
+
+
+def _forward_policy_batches(
+    params,
+    plane_batches: list[np.ndarray],
+    *,
+    layer: str,
+    direction: np.ndarray | None,
+    alpha: float,
+) -> np.ndarray:
+    policies = []
+    patch = None if direction is None else {"layer": layer, "vector": direction, "alpha": alpha}
+    for planes in plane_batches:
+        policy, _, _ = forward(params, planes, patch=patch)
+        policies.append(np.asarray(policy))
+    return np.concatenate(policies, axis=0)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--pairs", required=True, help="Solver-ready pairs.npz file.")
@@ -72,6 +140,9 @@ def main() -> int:
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--max-pairs", type=int, default=None)
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--control-count", type=int, default=0)
+    parser.add_argument("--control-kind", choices=["random", "shuffled"], default="random")
+    parser.add_argument("--control-seed", type=int, default=0)
     args = parser.parse_args()
 
     if chess is None:
@@ -129,37 +200,25 @@ def main() -> int:
     params = map_bt4_weights(bundle, mapping_table=attention_policy_map())
     direction = _load_direction(Path(args.concept), vector=args.vector)
 
-    base_batches = []
-    patched_batches = []
-    for start, stop in _batch_indices(len(valid_rows["root_fens"]), args.batch_size):
-        planes = []
-        for fen, history_fens in zip(
-            valid_rows["root_fens"][start:stop],
-            valid_rows["root_history_fens"][start:stop],
-        ):
-            board = chess.Board(fen)
-            history_boards = [chess.Board(history_fen) for history_fen in history_fens]
-            planes.append(
-                encode_board(
-                    board,
-                    history_boards,
-                    planes_layout="nchw",
-                    input_format="INPUT_CLASSICAL_112_PLANE",
-                )
-            )
-        planes_np = np.stack(planes, axis=0)
-        base_policy, _, _ = forward(params, planes_np)
-        patched_policy, _, _ = forward(
-            params,
-            planes_np,
-            patch={"layer": args.layer, "vector": direction, "alpha": args.alpha},
-        )
-        base_batches.append(np.asarray(base_policy))
-        patched_batches.append(np.asarray(patched_policy))
+    plane_batches = _encode_plane_batches(valid_rows, batch_size=args.batch_size)
+    base_policy = _forward_policy_batches(
+        params,
+        plane_batches,
+        layer=args.layer,
+        direction=None,
+        alpha=args.alpha,
+    )
+    patched_policy = _forward_policy_batches(
+        params,
+        plane_batches,
+        layer=args.layer,
+        direction=direction,
+        alpha=args.alpha,
+    )
 
     report = policy_margin_report(
-        base_policy=np.concatenate(base_batches, axis=0),
-        patched_policy=np.concatenate(patched_batches, axis=0),
+        base_policy=base_policy,
+        patched_policy=patched_policy,
         best_indices=best_indices,
         subpar_indices=subpar_indices,
         legal_masks=np.asarray(legal_masks, dtype=bool),
@@ -176,8 +235,46 @@ def main() -> int:
             "alpha": args.alpha,
             "vector": args.vector,
             "skipped_rows": int(skipped),
+            "control_kind": args.control_kind,
+            "control_count": args.control_count,
+            "control_seed": args.control_seed,
         }
     )
+    control_reports = []
+    for control_kind, control_idx, control_direction in _control_directions(
+        direction,
+        kind=args.control_kind,
+        count=args.control_count,
+        seed=args.control_seed,
+    ):
+        control_policy = _forward_policy_batches(
+            params,
+            plane_batches,
+            layer=args.layer,
+            direction=control_direction,
+            alpha=args.alpha,
+        )
+        control_report = policy_margin_report(
+            base_policy=base_policy,
+            patched_policy=control_policy,
+            best_indices=best_indices,
+            subpar_indices=subpar_indices,
+            legal_masks=np.asarray(legal_masks, dtype=bool),
+            root_fens=valid_rows["root_fens"],
+            best_moves=valid_rows["best_moves"],
+            subpar_moves=valid_rows["subpar_moves"],
+        )
+        control_report.pop("examples", None)
+        control_report.update(
+            {"control_kind": control_kind, "control_index": int(control_idx)}
+        )
+        control_reports.append(control_report)
+    if control_reports:
+        report["controls"] = control_reports
+        report["control_calibration"] = control_calibration_report(
+            report,
+            control_reports,
+        )
 
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)

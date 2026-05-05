@@ -36,7 +36,7 @@ This document explains why each test exists and what failure it is meant to catc
 - `tests/test_dynamic_baselines.py` checks constraint-satisfaction metrics plus random sparse and shuffled-label baseline summaries.
 - `tests/test_dynamic_evaluation.py` checks held-out dynamic direction evaluation reports and that the CLI defaults to `raw_direction` for margin metrics.
 - `tests/test_dynamic_causal.py` checks best-vs-subpar policy-margin summaries from base and patched logits.
-- `tests/test_dynamic_policy_margin_cli.py` checks dynamic policy-margin CLI validation and verifies that row-aligned `root_history_fens` are passed into BT4 encoding.
+- `tests/test_dynamic_policy_margin_cli.py` checks dynamic policy-margin CLI validation, verifies that row-aligned `root_history_fens` are passed into BT4 encoding, and covers optional random/shuffled control calibration output.
 - `tests/test_dynamic_prototypes.py` checks score-based prototype selection, reversed concept scoring, random controls, metadata propagation, direction-key validation, and the prototype-selection CLI.
 - `tests/test_dynamic_teachability.py` checks JSONL curriculum export from prototype/control reports, including provenance and malformed-row failures.
 - `tests/test_dynamic_splits.py` checks root-grouped train/test splitting for dynamic `pairs.npz` files, including fullmove-insensitive grouping, root provenance preservation, explicit custom row keys, and CLI output.
