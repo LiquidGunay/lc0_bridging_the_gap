@@ -105,8 +105,9 @@ Optionally stream a high-rated Lichess rapid/classical sample:
   --progress-every 100
 ```
 
-Prepare a dry-run plan. This writes candidate roots and command metadata but
-does not require LC0 or a GPU:
+Prepare a dry-run plan. With `--pgn`, this writes filtered candidate root
+records with pre-root `history_fens`, plus command metadata, but does not
+require LC0 or a GPU:
 
 ```bash
 RUN_ID=dynamic_high_strength_4k
@@ -126,7 +127,8 @@ RUN_ID=dynamic_high_strength_4k
 ```
 
 Repeat the dry-run with `--shard-index 1` through `7` if you want all shard root
-files prepared before copying to the GPU box.
+record files prepared before copying to the GPU box. Plain FEN lists can still
+be passed with `--fens` for debugging, but those roots do not carry PGN history.
 
 Bundle the staged repo and uv cache:
 

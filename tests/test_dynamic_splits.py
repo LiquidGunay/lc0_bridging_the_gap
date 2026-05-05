@@ -60,6 +60,11 @@ def test_subset_pairs_payload_preserves_non_row_metadata():
     payload = {
         "differences": np.arange(24).reshape(6, 4),
         "root_fens": np.asarray(["a", "a", "b", "c", "c", "d"], dtype=object),
+        "root_history_fens": np.asarray(
+            [["pa", "a"], ["pa", "a"], ["pb", "b"], ["pc", "c"], ["pc", "c"], ["pd", "d"]],
+            dtype=object,
+        ),
+        "root_game_ids": np.asarray(["ga", "ga", "gb", "gc", "gc", "gd"], dtype=object),
         "best_moves": np.asarray(["m0", "m1", "m2", "m3", "m4", "m5"], dtype=object),
         "feature_names": np.asarray(["f0", "f1", "f2", "f3", "f4", "f5"], dtype=object),
         "sample_weights": np.arange(6),
@@ -70,6 +75,8 @@ def test_subset_pairs_payload_preserves_non_row_metadata():
 
     np.testing.assert_array_equal(subset["differences"], payload["differences"][[0, 2, 5]])
     assert subset["root_fens"].tolist() == ["a", "b", "d"]
+    assert subset["root_history_fens"].tolist() == [["pa", "a"], ["pb", "b"], ["pd", "d"]]
+    assert subset["root_game_ids"].tolist() == ["ga", "gb", "gd"]
     assert subset["best_moves"].tolist() == ["m0", "m2", "m5"]
     assert subset["feature_names"].tolist() == ["f0", "f1", "f2", "f3", "f4", "f5"]
     assert subset["sample_weights"].tolist() == [0, 1, 2, 3, 4, 5]

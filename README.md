@@ -57,7 +57,8 @@ Record the LC0 version used for ONNX export and the BT4 model checksum (see `AGE
 - Dynamic sparse concepts from precomputed rollout pairs:
   - One-command GPU-oriented wrapper for high-strength PGN/FEN roots:
     `python tools/run_dynamic_gpu_pipeline.py --pgn data/pgn/tcec.pgn --pgn data/pgn/top_human.pgn --run-id dynamic_high_strength_4k --lc0 /tmp/lc0-src/build/release/lc0 --weights models/BT4-1024x15x32h-swa-6147500-policytune-332.pb.gz --lc0-backend cuda --max-roots 30000 --max-pairs 4000 --nodes 800 --multipv 4 --activation-batch-size 64 --stop-after sweep`
-    The wrapper writes `data/runs/<RUN_ID>/RUN_METADATA.md`, command logs, candidate roots, LC0 rollout pairs, trajectory activations, materialized flat pairs, train/test splits, and the screened dynamic sweep.
+    With `--pgn`, the wrapper writes filtered root-record JSONL with pre-root `history_fens` and passes `--root-records` into LC0 search. The MCTS builder reconstructs a short UCI move stack from consecutive history FENs when possible and records `root_history_reconstructed`. Plain `--fens` inputs remain supported for legacy/debug runs, but they only carry `[root_fen]` history.
+    The wrapper writes `data/runs/<RUN_ID>/RUN_METADATA.md`, command logs, candidate roots or root records, LC0 rollout pairs, trajectory activations, materialized flat pairs, train/test splits, and the screened dynamic sweep.
   - Runtime check for a new machine:
     `python tools/run_dynamic_gpu_pipeline.py --runtime-check-only`
   - Use `--dry-run` to record the planned commands without launching LC0 or JAX activation dumps. Use `--resume` to skip stages with wrapper completion markers, and use `--shard-count/--shard-index` to split LC0 MCTS extraction across workers. Sharded workers write isolated outputs under `data/runs/<RUN_ID>/shards/shard_XXX_of_YYY/`; run them with `--stop-after mcts` when distributing only the search step.
@@ -137,7 +138,10 @@ Phase is normalized to `[0, 1]` with `1.0` = opening and `0.0` = pure endgame.
   - For parallel runs: `--shard-count 4 --shard-index 0` (run 0..3 in separate shells and merge outputs).
   - To resume manually: re-run with `--start-line N` and `--append`, optionally `--state-file` to track progress.
 - LC0 MCTS rollout-pair metadata for dynamic concepts:
-  - `python tools/build_mcts_pairs.py --fens data/lichess/broadcasts.filtered.fens --out-jsonl data/runs/<RUN_ID>/mcts_pairs/pairs.jsonl --out-trajectory-records data/runs/<RUN_ID>/mcts_pairs/trajectory.records.jsonl --out-trajectory-fens data/runs/<RUN_ID>/mcts_pairs/trajectory.fens --lc0 /tmp/lc0-src/build/release/lc0 --weights models/BT4-1024x15x32h-swa-6147500-policytune-332.pb.gz --nodes 800 --multipv 4 --max-pairs 100`
+  - Preferred history-faithful input:
+    `python tools/build_mcts_pairs.py --root-records data/lichess/broadcasts.records.jsonl --out-jsonl data/runs/<RUN_ID>/mcts_pairs/pairs.jsonl --out-trajectory-records data/runs/<RUN_ID>/mcts_pairs/trajectory.records.jsonl --out-trajectory-fens data/runs/<RUN_ID>/mcts_pairs/trajectory.fens --lc0 /tmp/lc0-src/build/release/lc0 --weights models/BT4-1024x15x32h-swa-6147500-policytune-332.pb.gz --nodes 800 --multipv 4 --max-pairs 100`
+  - Legacy/debug FEN input:
+    `python tools/build_mcts_pairs.py --fens data/lichess/broadcasts.filtered.fens --out-jsonl data/runs/<RUN_ID>/mcts_pairs/pairs.jsonl --out-trajectory-records data/runs/<RUN_ID>/mcts_pairs/trajectory.records.jsonl --out-trajectory-fens data/runs/<RUN_ID>/mcts_pairs/trajectory.fens --lc0 /tmp/lc0-src/build/release/lc0 --weights models/BT4-1024x15x32h-swa-6147500-policytune-332.pb.gz --nodes 800 --multipv 4 --max-pairs 100`
 
 ## Data sources
 
@@ -155,7 +159,7 @@ Phase is normalized to `[0, 1]` with `1.0` = opening and `0.0` = pure endgame.
   - `python tools/download_data.py lichess-puzzles --out-fens data/lichess/puzzles_2500.fens --min-rating 2500`
   - By default, the puzzle loader applies the first move so the FEN represents the position shown to the solver (use `--raw-fen` to keep the original).
 - Computer championship or top-human PGNs:
-  - Store source PGNs under `data/pgn/` and pass one or more files directly to `tools/run_dynamic_gpu_pipeline.py --pgn ...`. The wrapper samples positions from every mainline, filters openings/endgames, and can shard candidate roots before LC0 search.
+  - Store source PGNs under `data/pgn/` and pass one or more files directly to `tools/run_dynamic_gpu_pipeline.py --pgn ...`. The wrapper samples positions from every mainline, preserves pre-root LC0 history in root records, filters openings/endgames, and can shard candidate roots before LC0 search.
 - Computer: use LC0 training chunks or generate selfplay. Training chunks can be converted to one-ply PGNs/FENs:
   - Download latest LC0 chunk tar: `python tools/download_data.py lc0-chunks --out-dir data/lc0-training --count 1 --min-size 1000000`
   - `python tools/chunks_to_pgn.py --chunk data/chunk1.gz --chunk data/chunk2.gz --out-pgn data/lc0_chunk.pgn --out-fens data/lc0_chunk.fens --max-positions 1000`

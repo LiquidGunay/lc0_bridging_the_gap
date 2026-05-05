@@ -2,6 +2,7 @@ import json
 import sys
 
 import chess
+import chess.pgn
 import pytest
 
 from tools import run_dynamic_gpu_pipeline as pipeline
@@ -12,6 +13,17 @@ def _fen_after_san(*moves: str) -> str:
     for move in moves:
         board.push_san(move)
     return board.fen()
+
+
+def _write_pgn(path, moves: list[str]) -> None:
+    game = chess.pgn.Game()
+    node = game
+    board = game.board()
+    for san in moves:
+        move = board.parse_san(san)
+        node = node.add_variation(move)
+        board.push(move)
+    path.write_text(str(game) + "\n\n", encoding="utf-8")
 
 
 def test_resolve_lc0_backend_prefers_gpu_when_jax_gpu_visible():
@@ -91,6 +103,64 @@ def test_prepare_roots_filters_dedupes_and_shards(tmp_path):
     assert shard_path.read_text(encoding="utf-8").splitlines() == [fens[1], fens[3]]
 
 
+def test_pgn_dry_run_prepares_root_records_by_default(tmp_path):
+    pgn_path = tmp_path / "tiny.pgn"
+    _write_pgn(pgn_path, ["e4", "e5", "Nf3", "Nc6"])
+    run_dir = tmp_path / "run"
+
+    rc = pipeline.main(
+        [
+            "--run-dir",
+            str(run_dir),
+            "--pgn",
+            str(pgn_path),
+            "--dry-run",
+            "--stop-after",
+            "mcts",
+            "--lc0",
+            "/fake/lc0",
+            "--weights",
+            "/fake/weights.pb.gz",
+            "--min-ply",
+            "0",
+            "--min-phase",
+            "0",
+            "--max-phase",
+            "1",
+            "--min-pieces",
+            "2",
+            "--min-nonpawn",
+            "0",
+            "--max-roots",
+            "3",
+        ]
+    )
+
+    assert rc == 0
+    summary = json.loads((run_dir / "run_summary.json").read_text(encoding="utf-8"))
+    records_path = run_dir / "candidate_roots.filtered.records.jsonl"
+    records = [
+        json.loads(line)
+        for line in records_path.read_text(encoding="utf-8").splitlines()
+    ]
+    commands = [
+        json.loads(line)
+        for line in (run_dir / "commands.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+    mcts_cmd = commands[0]["cmd"]
+
+    assert summary["roots"]["input_mode"] == "root_records"
+    assert summary["roots"]["root_arg"] == "--root-records"
+    assert summary["roots"]["roots"] == str(records_path)
+    assert summary["roots"]["root_count"] == 3
+    assert len(records) == 3
+    assert records[0]["history_fens"][-1] == records[0]["fen"]
+    assert len(records[1]["history_fens"]) == 3
+    assert "--root-records" in mcts_cmd
+    assert str(records_path) in mcts_cmd
+    assert "--fens" not in mcts_cmd
+
+
 def test_dry_run_writes_gpu_command_plan(tmp_path):
     fens_path = tmp_path / "roots.fens"
     fens_path.write_text(_fen_after_san("e4", "e5", "Nf3", "Nc6") + "\n", encoding="utf-8")
@@ -142,6 +212,8 @@ def test_dry_run_writes_gpu_command_plan(tmp_path):
     assert "UV_CACHE_DIR" in records[0]["env"]
 
     mcts_cmd = records[0]["cmd"]
+    assert "--fens" in mcts_cmd
+    assert "--root-records" not in mcts_cmd
     if "--backend" in mcts_cmd:
         assert mcts_cmd[mcts_cmd.index("--backend") + 1] == "cuda"
 

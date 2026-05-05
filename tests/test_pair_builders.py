@@ -14,6 +14,12 @@ def test_materialize_rollout_differences_from_token_activations(tmp_path):
     pairs = tmp_path / "pairs.jsonl"
     record = {
         "root_fen": "root",
+        "root_history_fens": ["pre", "root"],
+        "root_game_id": "game-a",
+        "root_game_index": 7,
+        "root_ply": 22,
+        "root_source": "source.pgn",
+        "root_record_id": "record-a",
         "best": {
             "move": "e2e4",
             "score_cp": 50,
@@ -53,6 +59,12 @@ def test_materialize_rollout_differences_from_token_activations(tmp_path):
     assert payload["root_fens"].tolist() == ["root"]
     assert payload["best_moves"].tolist() == ["e2e4"]
     assert payload["subpar_moves"].tolist() == ["d2d4"]
+    assert payload["root_history_fens"].tolist() == [["pre", "root"]]
+    assert payload["root_game_ids"].tolist() == ["game-a"]
+    assert payload["root_game_indices"].tolist() == [7]
+    assert payload["root_plies"].tolist() == [22]
+    assert payload["root_sources"].tolist() == ["source.pgn"]
+    assert payload["root_record_ids"].tolist() == ["record-a"]
 
 
 def test_load_activation_index_falls_back_to_embeddings(tmp_path):

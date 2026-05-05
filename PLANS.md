@@ -70,6 +70,8 @@ The goal is to build an open-source, reproducible pipeline that can load a real 
 - [x] (2026-04-27 19:10Z) Added a screened flat dynamic solver path (`tools/solve_dynamic_concepts.py --max-features`) that preserves the exact sparse CVXPY objective on a deterministic feature subset and expands directions back to the original feature dimension; validated it on the preserved `(93, 65536)` GCP flat pairs with a 2048-feature screen.
 - [x] (2026-04-28 00:00Z) Added `tools/sweep_dynamic_screening.py` to sweep screened feature caps, screening methods, held-out evaluation, baselines, prototypes, curriculum export, and optional policy-margin alpha/direction-key settings with aggregate JSON/Markdown summaries.
 - [x] (2026-04-28 04:10Z) Ran the screened-solver sweep on `pipeline-vm` for `gcp_dynamic_large_20260427_174945`: 8 solver configs and 64 policy-margin variants. `abs_mean_2048` was best on held-out constraint/margin, while raw-direction alpha-3 patching produced large but often harmful policy-margin effects.
+- [x] (2026-05-05 00:00Z) Added history-faithful dynamic root records for PGN-driven MCTS runs: `tools/run_dynamic_gpu_pipeline.py --pgn` now prepares filtered root-record JSONL, `tools/build_mcts_pairs.py --root-records` preserves pre-root `history_fens`, reconstructs a short UCI move stack when possible, trajectory activation records combine pre-root history with PV continuations, activation keys are stable across merged shards, and materialized/split/policy-margin metadata preserves root provenance. Focused tests and the full `93`-test suite passed after review hardening.
+- [ ] Add richer dynamic MCTS metadata, locked data manifests, concept-family clustering, causal calibration controls, frozen-trunk teachability evaluation, and notebook curriculum wrappers.
 - [ ] Add teachability evaluation with a weaker LC0 checkpoint or student network and random-prototype baselines.
 
 ## Surprises & Discoveries
@@ -128,6 +130,12 @@ The goal is to build an open-source, reproducible pipeline that can load a real 
   Evidence: `tools/run_dynamic_gpu_pipeline.py --runtime-check-only` records both shell-level NVIDIA visibility and JAX device discovery so GCP/local runs do not silently assume CPU.
 - Observation: The local LC0 binary path is absent, so LC0 search throughput cannot be smoke-tested in this workspace until LC0 is rebuilt or supplied.
   Evidence: `/tmp/lc0-src/build/release/lc0` does not exist, while the GCP CPU validation used `/root/lc0-src/build/release/lc0`.
+- Observation: Dynamic MCTS trajectory records previously preserved rolling history only from the root forward when the root came from a plain FEN list. PGN-derived root records are needed to make the root position itself history-faithful for BT4's 112-plane input.
+  Evidence: The new focused tests exercise `--root-records` and assert that trajectory histories begin with pre-root PGN history before appending best/subpar PV positions.
+- Observation: Sharded MCTS outputs can be concatenated only if activation keys are globally stable. Local shard line numbers collide when every shard starts at line 0.
+  Evidence: Review found that `root_00000000:best:000` could appear in multiple shards. Activation line IDs now include a sanitized root record label plus a SHA1 digest, and tests cover same-line different-record IDs.
+- Observation: Policy-margin checks must use the same root history as trajectory activation dumps.
+  Evidence: Review found `encode_board(board, [])` in policy-margin paths. `tools/dynamic_policy_margin.py` and `tools/sweep_dynamic_screening.py` now pass row-aligned `root_history_fens` to `encode_board`, with focused tests.
 
 ## Decision Log
 
@@ -135,6 +143,9 @@ The goal is to build an open-source, reproducible pipeline that can load a real 
 - Decision: Add a single GPU-oriented dynamic pipeline wrapper instead of creating another parallel pipeline implementation.
   Rationale: The existing LC0 MCTS, activation, materialization, split, and sweep tools already encode the domain behavior. The wrapper should prepare high-strength PGN/FEN roots, set GPU-friendly runtime environment, isolate shard work directories, require stage completion markers for resume, and record commands/metadata under `data/runs/<RUN_ID>/`.
   Date/Author: 2026-04-28 / Codex
+- Decision: Make PGN-driven dynamic runs prepare root-record JSONL and pass `--root-records` into MCTS extraction, while keeping plain FEN inputs as a legacy/debug path.
+  Rationale: LC0's BT4 input uses history planes. PGNs contain pre-root move history, but plain FEN lists do not. Keeping FEN support preserves existing smoke tests and cached workflows, while making PGN records the default path for scientifically defensible dynamic roots.
+  Date/Author: 2026-05-05 / Codex
 - Decision: Target the specific network `BT4-1024x15x32h-swa-6147500-policytune-332.pb.gz` and make it the only required net for the first implementation.
   Rationale: This aligns with the user's request and ensures the oracle and Flax parity work is tightly scoped.
   Date/Author: 2026-01-29 / Codex

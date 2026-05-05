@@ -20,6 +20,12 @@ DEFAULT_ROW_ALIGNED_KEYS = frozenset(
         "subpar_score_cp",
         "best_pv",
         "subpar_pv",
+        "root_history_fens",
+        "root_game_ids",
+        "root_game_indices",
+        "root_plies",
+        "root_sources",
+        "root_record_ids",
     }
 )
 

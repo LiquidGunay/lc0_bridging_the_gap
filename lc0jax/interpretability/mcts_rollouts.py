@@ -35,14 +35,32 @@ class RolloutPairRecord:
     node_budget: int | None
     best: RolloutLine
     subpar: list[RolloutLine]
+    root_history_fens: list[str] | None = None
+    root_game_id: str | None = None
+    root_game_index: int | None = None
+    root_ply: int | None = None
+    root_source: str | None = None
+    root_record_id: str | None = None
+    root_history_reconstructed: bool | None = None
 
     def to_json(self) -> dict:
-        return {
+        payload = {
             "root_fen": self.root_fen,
             "node_budget": self.node_budget,
             "best": self.best.to_json(),
             "subpar": [line.to_json() for line in self.subpar],
         }
+        optional = {
+            "root_history_fens": self.root_history_fens,
+            "root_game_id": self.root_game_id,
+            "root_game_index": self.root_game_index,
+            "root_ply": self.root_ply,
+            "root_source": self.root_source,
+            "root_record_id": self.root_record_id,
+            "root_history_reconstructed": self.root_history_reconstructed,
+        }
+        payload.update({key: value for key, value in optional.items() if value is not None})
+        return payload
 
 
 def pv_to_fens(
@@ -65,33 +83,94 @@ def pv_to_fens(
     return fens
 
 
+def board_from_root_history(
+    fen: str,
+    root_history_fens: list[str] | None = None,
+) -> tuple["chess.Board", bool]:
+    """Return a root board, reconstructing a short move stack from history when possible."""
+    if chess is None:
+        raise ImportError("python-chess is required for MCTS rollout extraction.")
+
+    fallback = chess.Board(fen)
+    history = [str(item) for item in (root_history_fens or []) if str(item)]
+    if not history:
+        return fallback, False
+    if history[-1] != fen:
+        history.append(fen)
+    if len(history) == 1:
+        return fallback, False
+
+    try:
+        board = chess.Board(history[0])
+        for target_fen in history[1:]:
+            matched_move = None
+            for move in board.legal_moves:
+                candidate = board.copy(stack=True)
+                candidate.push(move)
+                if candidate.fen() == target_fen:
+                    matched_move = move
+                    break
+            if matched_move is None:
+                return fallback, False
+            board.push(matched_move)
+    except ValueError:
+        return fallback, False
+    if board.fen() != fen:
+        return fallback, False
+    return board, True
+
+
 def activation_records_for_line(
     line: RolloutLine,
     *,
     line_id: str,
     history_len: int = 8,
+    root_history_fens: list[str] | None = None,
+    root_game_id: str | None = None,
+    root_game_index: int | None = None,
+    root_ply: int | None = None,
+    root_source: str | None = None,
+    root_record_id: str | None = None,
 ) -> list[dict]:
     """Return activation records for a rollout line and attach stable keys."""
     if chess is None:
         raise ImportError("python-chess is required for MCTS rollout extraction.")
     if history_len < 1:
         raise ValueError("history_len must be >= 1")
+    if not line.fens:
+        return []
+
+    root_fen = line.fens[0]
+    base_history = [str(fen) for fen in (root_history_fens or []) if str(fen)]
+    if not base_history or base_history[-1] != root_fen:
+        base_history.append(root_fen)
+
     keys = []
     records = []
-    root_ply = chess.Board(line.fens[0]).ply() if line.fens else 0
+    resolved_root_ply = chess.Board(root_fen).ply() if root_ply is None else int(root_ply)
     for idx, fen in enumerate(line.fens):
         key = f"{line_id}:{idx:03d}"
+        continuation = line.fens[1 : idx + 1]
         keys.append(key)
-        records.append(
-            {
-                "fen": fen,
-                "history_fens": line.fens[max(0, idx - history_len + 1) : idx + 1],
-                "game_id": line_id,
-                "ply": root_ply + idx,
-                "activation_key": key,
-                "trajectory_index": idx,
-            }
-        )
+        record = {
+            "fen": fen,
+            "history_fens": (base_history + continuation)[-history_len:],
+            "game_id": line_id,
+            "ply": resolved_root_ply + idx,
+            "activation_key": key,
+            "trajectory_index": idx,
+        }
+        if root_game_id is not None:
+            record["root_game_id"] = root_game_id
+        if root_game_index is not None:
+            record["root_game_index"] = int(root_game_index)
+        if root_ply is not None:
+            record["root_ply"] = resolved_root_ply
+        if root_source is not None:
+            record["root_source"] = root_source
+        if root_record_id is not None:
+            record["root_record_id"] = root_record_id
+        records.append(record)
     line.activation_keys = keys
     return records
 
@@ -135,11 +214,17 @@ def build_rollout_pair_record(
     max_delta_cp: int | None = None,
     max_depth: int | None = None,
     node_budget: int | None = None,
+    root_history_fens: list[str] | None = None,
+    root_game_id: str | None = None,
+    root_game_index: int | None = None,
+    root_ply: int | None = None,
+    root_source: str | None = None,
+    root_record_id: str | None = None,
 ) -> RolloutPairRecord | None:
     """Run MultiPV search and select meaningful subpar alternatives."""
     if chess is None:
         raise ImportError("python-chess is required for MCTS rollout extraction.")
-    board = chess.Board(fen)
+    board, history_reconstructed = board_from_root_history(fen, root_history_fens)
     infos = engine.analyse(board, limit, multipv=multipv)
     if isinstance(infos, dict):
         infos = [infos]
@@ -167,4 +252,11 @@ def build_rollout_pair_record(
         node_budget=node_budget,
         best=best,
         subpar=subpar,
+        root_history_fens=root_history_fens,
+        root_game_id=root_game_id,
+        root_game_index=root_game_index,
+        root_ply=root_ply,
+        root_source=root_source,
+        root_record_id=root_record_id,
+        root_history_reconstructed=history_reconstructed,
     )
