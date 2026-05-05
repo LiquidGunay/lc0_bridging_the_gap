@@ -138,6 +138,8 @@ def test_pgn_dry_run_prepares_root_records_by_default(tmp_path):
 
     assert rc == 0
     summary = json.loads((run_dir / "run_summary.json").read_text(encoding="utf-8"))
+    manifest_path = run_dir / "dynamic_roots_manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     records_path = run_dir / "candidate_roots.filtered.records.jsonl"
     records = [
         json.loads(line)
@@ -153,12 +155,70 @@ def test_pgn_dry_run_prepares_root_records_by_default(tmp_path):
     assert summary["roots"]["root_arg"] == "--root-records"
     assert summary["roots"]["roots"] == str(records_path)
     assert summary["roots"]["root_count"] == 3
+    assert summary["outputs"]["dynamic_roots_manifest"] == str(manifest_path)
+    assert manifest["kind"] == "dynamic_roots_v1"
+    assert manifest["run"]["status"] == "planned"
+    assert manifest["run"]["dry_run"] is True
+    assert manifest["root_input_mode"] == "root_records"
+    assert manifest["root_history_required"] is True
+    assert manifest["root_history_complete"] is True
+    assert manifest["contains_history_poor_roots"] is False
+    assert manifest["roots"]["source_counts"] == {"fen_input_paths": 0, "pgn_input_paths": 1}
+    assert manifest["roots"]["roots"] == str(records_path)
+    assert manifest["filters"]["max_roots"] == 3
+    assert manifest["search"]["multipv"] == 4
+    assert manifest["outputs"]["dynamic_roots_manifest"] == str(manifest_path)
+    assert manifest["output_status"]["dynamic_roots_manifest"]["exists"] is True
+    assert manifest["output_status"]["pairs_jsonl"]["exists"] is False
     assert len(records) == 3
     assert records[0]["history_fens"][-1] == records[0]["fen"]
     assert len(records[1]["history_fens"]) == 3
     assert "--root-records" in mcts_cmd
     assert str(records_path) in mcts_cmd
     assert "--fens" not in mcts_cmd
+
+
+def test_mixed_pgn_and_fen_manifest_marks_history_incomplete(tmp_path):
+    pgn_path = tmp_path / "tiny.pgn"
+    _write_pgn(pgn_path, ["e4", "e5", "Nf3", "Nc6"])
+    fens_path = tmp_path / "roots.fens"
+    fens_path.write_text(_fen_after_san("d4", "d5", "c4", "e6") + "\n", encoding="utf-8")
+    run_dir = tmp_path / "run"
+
+    rc = pipeline.main(
+        [
+            "--run-dir",
+            str(run_dir),
+            "--pgn",
+            str(pgn_path),
+            "--fens",
+            str(fens_path),
+            "--dry-run",
+            "--stop-after",
+            "prepare",
+            "--min-ply",
+            "0",
+            "--min-phase",
+            "0",
+            "--max-phase",
+            "1",
+            "--min-pieces",
+            "2",
+            "--min-nonpawn",
+            "0",
+        ]
+    )
+
+    assert rc == 0
+    manifest = json.loads(
+        (run_dir / "dynamic_roots_manifest.json").read_text(encoding="utf-8")
+    )
+    assert manifest["root_input_mode"] == "root_records"
+    assert manifest["root_history_required"] is True
+    assert manifest["root_history_complete"] is False
+    assert manifest["contains_history_poor_roots"] is True
+    assert manifest["roots"]["history_mode"] == "mixed_pgn_and_root_only_fen"
+    assert manifest["roots"]["source_counts"] == {"fen_input_paths": 1, "pgn_input_paths": 1}
 
 
 def test_dry_run_writes_gpu_command_plan(tmp_path):

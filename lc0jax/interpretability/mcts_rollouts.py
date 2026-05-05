@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+from typing import Any
 
 try:
     import chess
@@ -21,6 +22,14 @@ class RolloutLine:
     nodes: int | None
     pv: list[str]
     fens: list[str]
+    multipv_rank: int | None = None
+    seldepth: int | None = None
+    nps: int | None = None
+    hashfull: int | None = None
+    tbhits: int | None = None
+    wdl: dict[str, int] | None = None
+    score_delta_cp: int | None = None
+    raw_info_keys: list[str] | None = None
     activation_keys: list[str] | None = None
 
     def to_json(self) -> dict:
@@ -42,6 +51,7 @@ class RolloutPairRecord:
     root_source: str | None = None
     root_record_id: str | None = None
     root_history_reconstructed: bool | None = None
+    search_metadata: dict[str, Any] | None = None
 
     def to_json(self) -> dict:
         payload = {
@@ -58,6 +68,7 @@ class RolloutPairRecord:
             "root_source": self.root_source,
             "root_record_id": self.root_record_id,
             "root_history_reconstructed": self.root_history_reconstructed,
+            "search": self.search_metadata,
         }
         payload.update({key: value for key, value in optional.items() if value is not None})
         return payload
@@ -184,6 +195,22 @@ def score_cp_from_info(info: dict, *, turn: "chess.Color") -> int | None:
     return pov.score(mate_score=100000)
 
 
+def wdl_from_info(info: dict, *, turn: "chess.Color") -> dict[str, int] | None:
+    """Return WDL counts from the side-to-move perspective when the engine exposes them."""
+    wdl = info.get("wdl")
+    if wdl is None:
+        return None
+    try:
+        pov = wdl.pov(turn)
+    except AttributeError:
+        pov = wdl
+    return {
+        "wins": int(pov.wins),
+        "draws": int(pov.draws),
+        "losses": int(pov.losses),
+    }
+
+
 def line_from_info(
     root: "chess.Board",
     info: dict,
@@ -201,6 +228,13 @@ def line_from_info(
         nodes=info.get("nodes"),
         pv=[move.uci() for move in (pv if max_depth is None else pv[:max_depth])],
         fens=pv_to_fens(root, pv, max_depth=max_depth),
+        multipv_rank=info.get("multipv"),
+        seldepth=info.get("seldepth"),
+        nps=info.get("nps"),
+        hashfull=info.get("hashfull"),
+        tbhits=info.get("tbhits"),
+        wdl=wdl_from_info(info, turn=root.turn),
+        raw_info_keys=sorted(str(key) for key in info.keys()),
     )
 
 
@@ -220,6 +254,7 @@ def build_rollout_pair_record(
     root_ply: int | None = None,
     root_source: str | None = None,
     root_record_id: str | None = None,
+    search_metadata: dict[str, Any] | None = None,
 ) -> RolloutPairRecord | None:
     """Run MultiPV search and select meaningful subpar alternatives."""
     if chess is None:
@@ -240,6 +275,7 @@ def build_rollout_pair_record(
             continue
         if best.score_cp is not None and line.score_cp is not None:
             delta = best.score_cp - line.score_cp
+            line.score_delta_cp = delta
             if delta < min_delta_cp:
                 continue
             if max_delta_cp is not None and delta > max_delta_cp:
@@ -259,4 +295,5 @@ def build_rollout_pair_record(
         root_source=root_source,
         root_record_id=root_record_id,
         root_history_reconstructed=history_reconstructed,
+        search_metadata=search_metadata,
     )

@@ -29,7 +29,13 @@ def test_line_from_info_serializes_score_and_pv():
     info = {
         "score": chess.engine.PovScore(chess.engine.Cp(42), chess.WHITE),
         "depth": 7,
+        "seldepth": 9,
         "nodes": 800,
+        "nps": 12345,
+        "hashfull": 77,
+        "tbhits": 2,
+        "multipv": 1,
+        "wdl": chess.engine.PovWdl(chess.engine.Wdl(501, 300, 199), chess.WHITE),
         "pv": pv,
     }
     line = line_from_info(board, info, max_depth=1)
@@ -38,6 +44,24 @@ def test_line_from_info_serializes_score_and_pv():
     assert line.score_cp == 42
     assert line.depth == 7
     assert line.nodes == 800
+    assert line.seldepth == 9
+    assert line.nps == 12345
+    assert line.hashfull == 77
+    assert line.tbhits == 2
+    assert line.multipv_rank == 1
+    assert line.wdl == {"wins": 501, "draws": 300, "losses": 199}
+    assert line.raw_info_keys == [
+        "depth",
+        "hashfull",
+        "multipv",
+        "nodes",
+        "nps",
+        "pv",
+        "score",
+        "seldepth",
+        "tbhits",
+        "wdl",
+    ]
     assert line.pv == ["g1f3"]
     assert len(line.fens) == 2
     assert line.activation_keys is None
@@ -146,12 +170,15 @@ def test_build_rollout_pair_record_reconstructs_engine_root_history():
         multipv=2,
         min_delta_cp=1,
         root_history_fens=[start_fen, root_fen],
+        search_metadata={"nodes": 800, "multipv": 2},
     )
 
     assert record is not None
     assert record.root_history_reconstructed is True
+    assert record.search_metadata == {"nodes": 800, "multipv": 2}
     assert record.best.move == "e7e5"
     assert record.subpar[0].move == "c7c5"
+    assert record.subpar[0].score_delta_cp == 50
 
 
 def test_score_cp_uses_side_to_move_perspective():

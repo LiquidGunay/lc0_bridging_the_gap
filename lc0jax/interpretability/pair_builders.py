@@ -134,6 +134,25 @@ def materialize_rollout_differences(
     subpar_moves = []
     best_scores = []
     subpar_scores = []
+    score_delta_cps = []
+    best_wdls = []
+    subpar_wdls = []
+    best_multipv_ranks = []
+    subpar_multipv_ranks = []
+    best_depths = []
+    subpar_depths = []
+    best_nodes = []
+    subpar_nodes = []
+    best_seldepths = []
+    subpar_seldepths = []
+    best_nps = []
+    subpar_nps = []
+    best_hashfulls = []
+    subpar_hashfulls = []
+    best_tbhits = []
+    subpar_tbhits = []
+    best_raw_info_keys = []
+    subpar_raw_info_keys = []
     best_pvs = []
     subpar_pvs = []
     root_history_fens = []
@@ -185,6 +204,25 @@ def materialize_rollout_differences(
             subpar_moves.append(subpar_line.get("move", ""))
             best_scores.append(best_line.get("score_cp"))
             subpar_scores.append(subpar_line.get("score_cp"))
+            score_delta_cps.append(subpar_line.get("score_delta_cp"))
+            best_wdls.append(best_line.get("wdl"))
+            subpar_wdls.append(subpar_line.get("wdl"))
+            best_multipv_ranks.append(best_line.get("multipv_rank"))
+            subpar_multipv_ranks.append(subpar_line.get("multipv_rank"))
+            best_depths.append(best_line.get("depth"))
+            subpar_depths.append(subpar_line.get("depth"))
+            best_nodes.append(best_line.get("nodes"))
+            subpar_nodes.append(subpar_line.get("nodes"))
+            best_seldepths.append(best_line.get("seldepth"))
+            subpar_seldepths.append(subpar_line.get("seldepth"))
+            best_nps.append(best_line.get("nps"))
+            subpar_nps.append(subpar_line.get("nps"))
+            best_hashfulls.append(best_line.get("hashfull"))
+            subpar_hashfulls.append(subpar_line.get("hashfull"))
+            best_tbhits.append(best_line.get("tbhits"))
+            subpar_tbhits.append(subpar_line.get("tbhits"))
+            best_raw_info_keys.append(best_line.get("raw_info_keys", []))
+            subpar_raw_info_keys.append(subpar_line.get("raw_info_keys", []))
             best_pvs.append(" ".join(best_line.get("pv", [])))
             subpar_pvs.append(" ".join(subpar_line.get("pv", [])))
             root_history_fens.append(record.get("root_history_fens", []))
@@ -204,6 +242,25 @@ def materialize_rollout_differences(
         "subpar_moves": np.asarray(subpar_moves, dtype=object),
         "best_score_cp": np.asarray(best_scores, dtype=object),
         "subpar_score_cp": np.asarray(subpar_scores, dtype=object),
+        "score_delta_cp": np.asarray(score_delta_cps, dtype=object),
+        "best_wdl": np.asarray(best_wdls, dtype=object),
+        "subpar_wdl": np.asarray(subpar_wdls, dtype=object),
+        "best_multipv_rank": np.asarray(best_multipv_ranks, dtype=object),
+        "subpar_multipv_rank": np.asarray(subpar_multipv_ranks, dtype=object),
+        "best_depth": np.asarray(best_depths, dtype=object),
+        "subpar_depth": np.asarray(subpar_depths, dtype=object),
+        "best_nodes": np.asarray(best_nodes, dtype=object),
+        "subpar_nodes": np.asarray(subpar_nodes, dtype=object),
+        "best_seldepth": np.asarray(best_seldepths, dtype=object),
+        "subpar_seldepth": np.asarray(subpar_seldepths, dtype=object),
+        "best_nps": np.asarray(best_nps, dtype=object),
+        "subpar_nps": np.asarray(subpar_nps, dtype=object),
+        "best_hashfull": np.asarray(best_hashfulls, dtype=object),
+        "subpar_hashfull": np.asarray(subpar_hashfulls, dtype=object),
+        "best_tbhits": np.asarray(best_tbhits, dtype=object),
+        "subpar_tbhits": np.asarray(subpar_tbhits, dtype=object),
+        "best_raw_info_keys": np.asarray(best_raw_info_keys, dtype=object),
+        "subpar_raw_info_keys": np.asarray(subpar_raw_info_keys, dtype=object),
         "best_pv": np.asarray(best_pvs, dtype=object),
         "subpar_pv": np.asarray(subpar_pvs, dtype=object),
         "root_history_fens": np.asarray(root_history_fens, dtype=object),

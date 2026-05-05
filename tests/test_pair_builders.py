@@ -23,6 +23,15 @@ def test_materialize_rollout_differences_from_token_activations(tmp_path):
         "best": {
             "move": "e2e4",
             "score_cp": 50,
+            "multipv_rank": 1,
+            "depth": 8,
+            "nodes": 1000,
+            "seldepth": 10,
+            "nps": 20000,
+            "hashfull": 100,
+            "tbhits": 0,
+            "wdl": {"wins": 500, "draws": 300, "losses": 200},
+            "raw_info_keys": ["depth", "nodes", "wdl"],
             "pv": ["e2e4"],
             "fens": ["root", "best1"],
         },
@@ -30,6 +39,16 @@ def test_materialize_rollout_differences_from_token_activations(tmp_path):
             {
                 "move": "d2d4",
                 "score_cp": 10,
+                "score_delta_cp": 40,
+                "multipv_rank": 2,
+                "depth": 7,
+                "nodes": 900,
+                "seldepth": 9,
+                "nps": 18000,
+                "hashfull": 99,
+                "tbhits": 0,
+                "wdl": {"wins": 450, "draws": 310, "losses": 240},
+                "raw_info_keys": ["depth", "nodes", "wdl"],
                 "pv": ["d2d4"],
                 "fens": ["root", "sub1"],
             }
@@ -59,6 +78,25 @@ def test_materialize_rollout_differences_from_token_activations(tmp_path):
     assert payload["root_fens"].tolist() == ["root"]
     assert payload["best_moves"].tolist() == ["e2e4"]
     assert payload["subpar_moves"].tolist() == ["d2d4"]
+    assert payload["score_delta_cp"].tolist() == [40]
+    assert payload["best_wdl"].tolist() == [{"wins": 500, "draws": 300, "losses": 200}]
+    assert payload["subpar_wdl"].tolist() == [{"wins": 450, "draws": 310, "losses": 240}]
+    assert payload["best_multipv_rank"].tolist() == [1]
+    assert payload["subpar_multipv_rank"].tolist() == [2]
+    assert payload["best_depth"].tolist() == [8]
+    assert payload["subpar_depth"].tolist() == [7]
+    assert payload["best_nodes"].tolist() == [1000]
+    assert payload["subpar_nodes"].tolist() == [900]
+    assert payload["best_seldepth"].tolist() == [10]
+    assert payload["subpar_seldepth"].tolist() == [9]
+    assert payload["best_nps"].tolist() == [20000]
+    assert payload["subpar_nps"].tolist() == [18000]
+    assert payload["best_hashfull"].tolist() == [100]
+    assert payload["subpar_hashfull"].tolist() == [99]
+    assert payload["best_tbhits"].tolist() == [0]
+    assert payload["subpar_tbhits"].tolist() == [0]
+    assert payload["best_raw_info_keys"].tolist() == [["depth", "nodes", "wdl"]]
+    assert payload["subpar_raw_info_keys"].tolist() == [["depth", "nodes", "wdl"]]
     assert payload["root_history_fens"].tolist() == [["pre", "root"]]
     assert payload["root_game_ids"].tolist() == ["game-a"]
     assert payload["root_game_indices"].tolist() == [7]
