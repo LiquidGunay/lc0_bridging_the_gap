@@ -72,7 +72,8 @@ The goal is to build an open-source, reproducible pipeline that can load a real 
 - [x] (2026-04-28 04:10Z) Ran the screened-solver sweep on `pipeline-vm` for `gcp_dynamic_large_20260427_174945`: 8 solver configs and 64 policy-margin variants. `abs_mean_2048` was best on held-out constraint/margin, while raw-direction alpha-3 patching produced large but often harmful policy-margin effects.
 - [x] (2026-05-05 00:00Z) Added history-faithful dynamic root records for PGN-driven MCTS runs: `tools/run_dynamic_gpu_pipeline.py --pgn` now prepares filtered root-record JSONL, `tools/build_mcts_pairs.py --root-records` preserves pre-root `history_fens`, reconstructs a short UCI move stack when possible, trajectory activation records combine pre-root history with PV continuations, activation keys are stable across merged shards, and materialized/split/policy-margin metadata preserves root provenance. Focused tests and the full `93`-test suite passed after review hardening.
 - [x] (2026-05-05 00:00Z) Added richer dynamic MCTS metadata and `dynamic_roots_v1` manifests: rollout lines now preserve available UCI fields such as MultiPV rank, depth/seldepth, nodes, nps, hashfull, tbhits, WDL, and score deltas; MCTS records include LC0/backend/search/model checksum metadata; materialized/split datasets keep those row-aligned fields; and the GPU wrapper writes `dynamic_roots_manifest.json` per work directory with dry-run/partial/completed status, output existence, and root-history completeness. Focused tests passed (`31 passed`), the full suite passed (`96` collected tests), and `git diff --check` passed.
-- [ ] Add human/machine reference manifests, concept-family clustering, causal calibration controls, frozen-trunk teachability evaluation, and notebook curriculum wrappers.
+- [x] (2026-05-05 00:00Z) Added dynamic concept-family generation: `tools/solve_dynamic_concept_families.py` clusters materialized rollout differences, solves one screened sparse vector per cluster, optionally reports bootstrap cosine stability, writes aggregate `families.npz`, and emits per-family concept directories that downstream evaluation/prototype tools can consume. Focused tests passed (`9 passed`), the full suite passed (`98` collected tests), and `git diff --check` passed.
+- [ ] Add human/machine reference manifests, causal calibration controls, frozen-trunk teachability evaluation, and notebook curriculum wrappers.
 - [ ] Add teachability evaluation with a weaker LC0 checkpoint or student network and random-prototype baselines.
 
 ## Surprises & Discoveries
@@ -151,6 +152,9 @@ The goal is to build an open-source, reproducible pipeline that can load a real 
   Date/Author: 2026-05-05 / Codex
 - Decision: Treat `dynamic_roots_manifest.json` as the locked reproducibility contract for dynamic runs and keep search metadata limited to fields exposed by LC0 UCI.
   Rationale: The manifest makes non-GCP GPU runs reproducible without requiring hidden machine context. Guessing visits or policy priors from MultiPV output would create misleading Schut-parity claims.
+  Date/Author: 2026-05-05 / Codex
+- Decision: Implement concept-family generation as a separate post-materialization CLI before wiring it into the GPU wrapper.
+  Rationale: The family stage consumes `pairs.npz` and can run independently on train splits, which keeps the existing global sparse sweep stable while making the new multi-concept discovery path available for scale experiments.
   Date/Author: 2026-05-05 / Codex
 - Decision: Target the specific network `BT4-1024x15x32h-swa-6147500-policytune-332.pb.gz` and make it the only required net for the first implementation.
   Rationale: This aligns with the user's request and ensures the oracle and Flax parity work is tightly scoped.
