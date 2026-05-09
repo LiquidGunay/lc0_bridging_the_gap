@@ -48,7 +48,13 @@ from .dynamic_splits import (
     subset_pairs_payload,
 )
 from .dynamic_teachability import teachability_curriculum_records
-from .manifests import dynamic_roots_manifest, sha256_file
+from .manifests import (
+    dynamic_roots_manifest,
+    file_manifest,
+    line_count,
+    reference_dataset_manifest,
+    sha256_file,
+)
 from .mcts_rollouts import (
     activation_records_for_line,
     board_from_root_history,
@@ -110,6 +116,9 @@ __all__ = [
     "activation_records_for_line",
     "pv_to_fens",
     "dynamic_roots_manifest",
+    "file_manifest",
+    "line_count",
+    "reference_dataset_manifest",
     "sha256_file",
     "iter_rollout_pair_records",
     "load_activation_index",

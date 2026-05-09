@@ -41,7 +41,7 @@ This document explains why each test exists and what failure it is meant to catc
 - `tests/test_dynamic_teachability.py` checks JSONL curriculum export from prototype/control reports, including provenance and malformed-row failures.
 - `tests/test_dynamic_splits.py` checks root-grouped train/test splitting for dynamic `pairs.npz` files, including fullmove-insensitive grouping, root provenance preservation, explicit custom row keys, and CLI output.
 - `tests/test_run_dynamic_gpu_pipeline.py` checks that PGN inputs prepare root-record JSONL and route MCTS extraction through `--root-records`, while FEN-only inputs continue to use the legacy `--fens` path, and that each run writes a `dynamic_roots_manifest.json` with dry-run status, output existence, and history-completeness metadata.
-- `tests/test_manifests.py` checks checksum and path serialization for dynamic-root reproducibility manifests.
+- `tests/test_manifests.py` checks checksum/path serialization for dynamic-root manifests plus `human_reference_v1`/`machine_reference_v1` reference manifests and the writer CLI.
 - `tests/test_sweep_dynamic_screening.py` checks that the screened sweep uses row-aligned `root_history_fens` when preparing policy-margin rows.
 - `tests/test_model_patch.py` checks that channel-only and flat square-local concept directions can be reshaped for token-shaped model patch points.
 - `tests/test_activations.py` checks that captured BT4 token activations can be reshaped to `[batch, 64, channels]` and projected either by mean pooling or by flattening square-local tokens.

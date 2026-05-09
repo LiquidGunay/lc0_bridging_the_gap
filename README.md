@@ -167,6 +167,12 @@ Phase is normalized to `[0, 1]` with `1.0` = opening and `0.0` = pure endgame.
 - Computer: use LC0 training chunks or generate selfplay. Training chunks can be converted to one-ply PGNs/FENs:
   - Download latest LC0 chunk tar: `python tools/download_data.py lc0-chunks --out-dir data/lc0-training --count 1 --min-size 1000000`
   - `python tools/chunks_to_pgn.py --chunk data/chunk1.gz --chunk data/chunk2.gz --out-pgn data/lc0_chunk.pgn --out-fens data/lc0_chunk.fens --max-positions 1000`
+- Reference manifests:
+  - Human reference contract:
+    `python tools/write_reference_manifest.py --kind human --name human_reference_v1 --source-type lichess_standard --source-url https://database.lichess.org/standard/ --input data/pgn/lichess_2400_rapid_classical.pgn --output data/pgn/lichess_2400_rapid_classical.fens --out data/manifests/human_reference_v1.json --min-elo 2400 --time-class rapid --time-class classical --rated --dedupe-key "board_fen side castling ep" --split-key game_id --exclude tablebase_7_or_less --exclude variant_nonstandard`
+  - Machine reference contract:
+    `python tools/write_reference_manifest.py --kind machine --name machine_reference_v1 --source-type tcec --source-url https://github.com/TCEC-Chess/tcecgames/releases --input data/pgn/tcec_compact_all.pgn --out data/manifests/machine_reference_v1.json --min-ply 18 --min-phase 0.25 --max-phase 0.85 --dedupe-key "board_fen side castling ep" --split-key game_id --exclude tablebase_7_or_less`
+  - Use `--no-checksum` for very large staged files when hashing would be too slow; otherwise the manifest records local file SHA256s. The writer fails if a listed local file is missing unless you pass `--allow-missing` for a planned manifest.
 
 Note: LC0 training chunks are not sequential game records; the PGN conversion emits one-ply games per position.
 See `TESTS.md` for the rationale behind the current test suite.

@@ -17,6 +17,7 @@ Guidance for future work in this repository. Keep this file short, factual, and 
 - Use PGN as the primary dataset input for human and LC0 self-play data, and support cached FEN lists as an intermediate format.
 - For dynamic MCTS concept runs, prefer PGN-derived root records (`--root-records`) so root positions preserve pre-root LC0 history; plain FEN roots are legacy/debug and history-poor.
 - Dynamic runs should write `dynamic_roots_manifest.json`; mark dry runs/partial runs clearly, record output existence and history completeness, record only UCI metadata LC0 exposes, and do not guess visits, policy priors, or full tree statistics.
+- Reference datasets should have `human_reference_v1`/`machine_reference_v1` manifests from `tools/write_reference_manifest.py` before large GPU runs.
 - Assume CUDA-enabled JAX for the primary path (CUDA 13 pip wheels by default), but keep CPU-only fallback working and tested.
 - The diffusion-related work is out of scope and should not be added unless the user explicitly requests it.
 - The full data pipeline now writes outputs under `data/runs/<RUN_ID>/` by default; use `SKIP_EXISTING=1` to resume without overwriting.

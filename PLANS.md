@@ -74,7 +74,8 @@ The goal is to build an open-source, reproducible pipeline that can load a real 
 - [x] (2026-05-05 00:00Z) Added richer dynamic MCTS metadata and `dynamic_roots_v1` manifests: rollout lines now preserve available UCI fields such as MultiPV rank, depth/seldepth, nodes, nps, hashfull, tbhits, WDL, and score deltas; MCTS records include LC0/backend/search/model checksum metadata; materialized/split datasets keep those row-aligned fields; and the GPU wrapper writes `dynamic_roots_manifest.json` per work directory with dry-run/partial/completed status, output existence, and root-history completeness. Focused tests passed (`31 passed`), the full suite passed (`96` collected tests), and `git diff --check` passed.
 - [x] (2026-05-05 00:00Z) Added dynamic concept-family generation: `tools/solve_dynamic_concept_families.py` clusters materialized rollout differences, solves one screened sparse vector per cluster, optionally reports bootstrap cosine stability, writes aggregate `families.npz`, and emits per-family concept directories that downstream evaluation/prototype tools can consume. Focused tests passed (`9 passed`), the full suite passed (`98` collected tests), and `git diff --check` passed.
 - [x] (2026-05-05 00:00Z) Added calibrated dynamic policy-margin controls: `tools/dynamic_policy_margin.py` now supports opt-in same-norm random or shuffled control directions and reports control calibration summaries alongside learned-direction patch effects. Focused tests passed (`6 passed`), the full suite passed (`100` collected tests), and `git diff --check` passed.
-- [ ] Add human/machine reference manifests, frozen-trunk teachability evaluation, and notebook curriculum wrappers.
+- [x] (2026-05-09 00:00Z) Added human/machine reference manifest tooling: `tools/write_reference_manifest.py` writes `human_reference_v1` and `machine_reference_v1` contracts with source URLs, local file records, optional checksums/line counts, filters, dedupe/split keys, exclusions, and counts. Focused tests passed (`7 passed`), the full suite passed (`105` collected tests), and `git diff --check` passed.
+- [ ] Generate real reference manifests for the next GPU run, add frozen-trunk teachability evaluation, and notebook curriculum wrappers.
 - [ ] Add teachability evaluation with a weaker LC0 checkpoint or student network and random-prototype baselines.
 
 ## Surprises & Discoveries
@@ -157,6 +158,9 @@ The goal is to build an open-source, reproducible pipeline that can load a real 
 - Decision: Implement concept-family generation as a separate post-materialization CLI before wiring it into the GPU wrapper.
   Rationale: The family stage consumes `pairs.npz` and can run independently on train splits, which keeps the existing global sparse sweep stable while making the new multi-concept discovery path available for scale experiments.
   Date/Author: 2026-05-05 / Codex
+- Decision: Add a reference-manifest writer instead of committing guessed manifests.
+  Rationale: The actual high-strength PGN files will live on the GPU box. The repo should provide a deterministic contract writer that records local file checksums and filters when those files exist, rather than inventing checksums for unstaged data.
+  Date/Author: 2026-05-09 / Codex
 - Decision: Target the specific network `BT4-1024x15x32h-swa-6147500-policytune-332.pb.gz` and make it the only required net for the first implementation.
   Rationale: This aligns with the user's request and ensures the oracle and Flax parity work is tightly scoped.
   Date/Author: 2026-01-29 / Codex

@@ -110,6 +110,45 @@ Optionally stream a high-rated Lichess rapid/classical sample:
   --progress-every 100
 ```
 
+Lock reference manifests before the GPU run. The writer fails if a listed local
+file is missing; use `--allow-missing` only for planned manifests. Use
+`--no-checksum` if the staged files are too large to hash in the setup window:
+
+```bash
+mkdir -p data/manifests
+
+.venv/bin/python tools/write_reference_manifest.py \
+  --kind machine \
+  --name machine_reference_v1 \
+  --source-type tcec \
+  --source-url https://github.com/TCEC-Chess/tcecgames/releases \
+  --input data/pgn/tcec_compact_all.pgn \
+  --out data/manifests/machine_reference_v1.json \
+  --min-ply 18 \
+  --min-phase 0.25 \
+  --max-phase 0.85 \
+  --dedupe-key "board_fen side castling ep" \
+  --split-key game_id \
+  --exclude tablebase_7_or_less
+
+.venv/bin/python tools/write_reference_manifest.py \
+  --kind human \
+  --name human_reference_v1 \
+  --source-type lichess_standard \
+  --source-url https://database.lichess.org/standard/ \
+  --input data/pgn/lichess_2400_rapid_classical.pgn \
+  --output data/pgn/lichess_2400_rapid_classical.fens \
+  --out data/manifests/human_reference_v1.json \
+  --min-elo 2400 \
+  --time-class rapid \
+  --time-class classical \
+  --rated \
+  --dedupe-key "board_fen side castling ep" \
+  --split-key game_id \
+  --exclude tablebase_7_or_less \
+  --exclude variant_nonstandard
+```
+
 Prepare a dry-run plan. With `--pgn`, this writes filtered candidate root
 records with pre-root `history_fens`, plus command metadata, but does not
 require LC0 or a GPU:
