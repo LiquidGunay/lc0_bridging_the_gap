@@ -38,6 +38,13 @@ def main() -> int:
             "<concept>/policy_margin_report.json."
         ),
     )
+    parser.add_argument(
+        "--families",
+        help=(
+            "Optional aggregate dynamic concept-family report path, usually "
+            "<families_dir>/report.json."
+        ),
+    )
     parser.add_argument("--out", required=True, help="Output markdown path.")
     parser.add_argument("--top-n", type=int, default=10)
     args = parser.parse_args()
@@ -50,6 +57,7 @@ def main() -> int:
         prototypes_path=args.prototypes,
         baselines_path=args.baselines,
         policy_margin_path=args.policy_margin,
+        families_path=args.families,
         top_n=args.top_n,
     )
     out_path = Path(args.out)

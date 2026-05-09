@@ -168,6 +168,171 @@ def test_build_dynamic_concept_report_includes_solver_novelty_and_pairs(tmp_path
     assert "| 0 | e2e4 (50) | d2d4 (10) | 40 | e2e4 e7e5 | d2d4 d7d5 | root fen |" in report
 
 
+def test_build_dynamic_concept_report_includes_family_summaries(tmp_path):
+    pairs = tmp_path / "pairs.npz"
+    np.savez_compressed(
+        pairs,
+        differences=np.ones((1, 8), dtype=np.float32),
+        root_fens=np.asarray(["root fen"], dtype=object),
+    )
+    concept_dir = tmp_path / "concept"
+    concept_dir.mkdir()
+    (concept_dir / "report.json").write_text(
+        json.dumps(
+            {
+                "method": "dynamic_sparse_cvxpy",
+                "status": "optimal",
+                "pairs": "pairs.train.npz",
+                "num_pairs": 1,
+                "dimension": 8,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    families_dir = tmp_path / "dynamic_families"
+    family_dir = families_dir / "family_000"
+    family_dir.mkdir(parents=True)
+    (families_dir / "report.json").write_text(
+        json.dumps(
+            {
+                "method": "dynamic_concept_families",
+                "clusters_requested": 2,
+                "families_solved": 1,
+                "bootstrap_count": 3,
+                "skipped_clusters": [
+                    {"cluster_id": 1, "num_rows": 1, "reason": "below_min_cluster_size"}
+                ],
+                "families": [
+                    {
+                        "family_id": 0,
+                        "cluster_id": 0,
+                        "num_pairs": 6,
+                        "status": "optimal",
+                        "constraint_satisfaction": 1.0,
+                        "margin_satisfaction": 0.6,
+                        "objective": 12.5,
+                        "screening": {
+                            "enabled": True,
+                            "method": "abs_mean",
+                            "screened_dimension": 4,
+                            "max_features": 8,
+                        },
+                        "stability": {"min_cosine": 0.75, "pass_fraction": 0.667},
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (family_dir / "heldout_eval_report.json").write_text(
+        json.dumps(
+            {
+                "evaluation": {
+                    "constraint_satisfaction": 0.8,
+                    "margin_satisfaction": 0.4,
+                    "mean_score": 1.2,
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    (family_dir / "prototypes_report.json").write_text(
+        json.dumps(
+            {
+                "score_summary": {"max": 2.0},
+                "prototypes": [{"index": 1}, {"index": 2}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (family_dir / "policy_margin_report.json").write_text(
+        json.dumps(
+            {
+                "mean_delta_margin": 0.125,
+                "fraction_delta_positive": 0.5,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    report = build_dynamic_concept_report(
+        pairs_path=pairs,
+        concept_dir=concept_dir,
+        families_path=families_dir / "report.json",
+        top_n=0,
+    )
+
+    assert "## Concept Families" in report
+    assert "- clusters requested: 2" in report
+    assert "- families solved: 1" in report
+    assert "- skipped clusters: 1" in report
+    assert (
+        "| 0 | optimal | 0 | 6 | 1.000000 | 0.600000 | 12.500000 | "
+        "0.800000 | 0.400000 | 0.750000 | 0.667000 | abs_mean/4/8 | "
+        "2 | 2.000000 | 0.125000 | 0.500000 |"
+    ) in report
+
+
+def test_build_dynamic_concept_report_finds_default_families_report(tmp_path):
+    pairs = tmp_path / "pairs.npz"
+    np.savez_compressed(
+        pairs,
+        differences=np.ones((1, 8), dtype=np.float32),
+        root_fens=np.asarray(["root fen"], dtype=object),
+    )
+    concept_dir = tmp_path / "concept"
+    concept_dir.mkdir()
+    (concept_dir / "report.json").write_text(
+        json.dumps(
+            {
+                "method": "dynamic_sparse_cvxpy",
+                "status": "optimal",
+                "num_pairs": 1,
+                "dimension": 8,
+            }
+        ),
+        encoding="utf-8",
+    )
+    (concept_dir / "families_report.json").write_text(
+        json.dumps(
+            {
+                "method": "dynamic_concept_families",
+                "clusters_requested": 1,
+                "families_solved": 1,
+                "bootstrap_count": 0,
+                "skipped_clusters": [],
+                "families": [
+                    {
+                        "family_id": 0,
+                        "cluster_id": 0,
+                        "num_pairs": 3,
+                        "status": "optimal_inaccurate",
+                        "constraint_satisfaction": 0.75,
+                        "margin_satisfaction": 0.25,
+                        "objective": 1.5,
+                        "screening": {"enabled": False},
+                        "stability": {"enabled": False},
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    report = build_dynamic_concept_report(
+        pairs_path=pairs,
+        concept_dir=concept_dir,
+        top_n=0,
+    )
+
+    assert "- families solved: 1" in report
+    assert (
+        "| 0 | optimal_inaccurate | 0 | 3 | 0.750000 | 0.250000 | "
+        "1.500000 | n/a | n/a | n/a | n/a | disabled | n/a | n/a | n/a | n/a |"
+    ) in report
+
+
 def test_build_dynamic_concept_report_accepts_explicit_evaluation_path(tmp_path):
     pairs = tmp_path / "pairs.test.npz"
     np.savez_compressed(
@@ -286,6 +451,32 @@ def test_build_dynamic_concept_report_cli_accepts_explicit_evaluation_path(
         ),
         encoding="utf-8",
     )
+    families_dir = tmp_path / "families"
+    families_dir.mkdir()
+    explicit_families = families_dir / "report.json"
+    explicit_families.write_text(
+        json.dumps(
+            {
+                "method": "dynamic_concept_families",
+                "clusters_requested": 1,
+                "families_solved": 1,
+                "bootstrap_count": 0,
+                "skipped_clusters": [],
+                "families": [
+                    {
+                        "family_id": 0,
+                        "cluster_id": 0,
+                        "num_pairs": 4,
+                        "status": "optimal",
+                        "constraint_satisfaction": 0.5,
+                        "screening": {"enabled": False},
+                        "stability": {"enabled": False},
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
     out = tmp_path / "report.md"
     monkeypatch.setattr(
         "sys.argv",
@@ -299,6 +490,8 @@ def test_build_dynamic_concept_report_cli_accepts_explicit_evaluation_path(
             str(explicit_eval),
             "--prototypes",
             str(explicit_prototypes),
+            "--families",
+            str(explicit_families),
             "--out",
             str(out),
             "--top-n",
@@ -315,6 +508,11 @@ def test_build_dynamic_concept_report_cli_accepts_explicit_evaluation_path(
     assert "- mean score: 4.000000" in report
     assert "- reverse: True" in report
     assert "- top prototype: index=2, score=5.000000, best=g1f3, subpar=b1c3" in report
+    assert "- clusters requested: 1" in report
+    assert (
+        "| 0 | optimal | 0 | 4 | 0.500000 | n/a | n/a | n/a | n/a | n/a | "
+        "n/a | disabled | n/a | n/a | n/a | n/a |"
+    ) in report
 
 
 def test_build_dynamic_concept_report_handles_partial_pair_metadata(tmp_path):
