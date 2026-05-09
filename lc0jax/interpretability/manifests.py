@@ -21,6 +21,41 @@ def sha256_file(path: str | Path | None) -> str | None:
     return digest.hexdigest()
 
 
+def line_count(path: str | Path | None) -> int | None:
+    """Return non-empty line count for an existing text file, otherwise ``None``."""
+    if path in (None, ""):
+        return None
+    file_path = Path(path)
+    if not file_path.exists() or not file_path.is_file():
+        return None
+    with file_path.open("r", encoding="utf-8", errors="ignore") as handle:
+        return sum(1 for line in handle if line.strip())
+
+
+def file_manifest(
+    path: str | Path,
+    *,
+    role: str | None = None,
+    checksum: bool = True,
+    count_lines: bool = False,
+) -> dict[str, Any]:
+    """Build a small manifest record for one local file path."""
+    file_path = Path(path)
+    record: dict[str, Any] = {
+        "path": file_path,
+        "exists": file_path.exists() and file_path.is_file(),
+    }
+    if role is not None:
+        record["role"] = role
+    if record["exists"]:
+        record["size_bytes"] = int(file_path.stat().st_size)
+    if checksum:
+        record["sha256"] = sha256_file(file_path)
+    if count_lines:
+        record["non_empty_lines"] = line_count(file_path)
+    return _json_value(record)
+
+
 def _json_value(value: Any) -> Any:
     if isinstance(value, Path):
         return str(value)
@@ -29,6 +64,43 @@ def _json_value(value: Any) -> Any:
     if isinstance(value, (list, tuple)):
         return [_json_value(item) for item in value]
     return value
+
+
+def reference_dataset_manifest(
+    *,
+    kind: str,
+    created_utc: str,
+    name: str,
+    source: dict[str, Any],
+    inputs: list[dict[str, Any]],
+    outputs: list[dict[str, Any]] | None = None,
+    filters: dict[str, Any] | None = None,
+    dedupe: dict[str, Any] | None = None,
+    split: dict[str, Any] | None = None,
+    exclusions: list[str] | None = None,
+    counts: dict[str, Any] | None = None,
+    notes: str | None = None,
+) -> dict[str, Any]:
+    """Build a locked human/machine reference dataset manifest."""
+    if kind not in {"human_reference_v1", "machine_reference_v1"}:
+        raise ValueError("kind must be human_reference_v1 or machine_reference_v1")
+    manifest = {
+        "manifest_version": 1,
+        "kind": kind,
+        "created_utc": created_utc,
+        "name": name,
+        "source": source,
+        "inputs": inputs,
+        "outputs": outputs or [],
+        "filters": filters or {},
+        "dedupe": dedupe or {},
+        "split": split or {},
+        "exclusions": exclusions or [],
+        "counts": counts or {},
+    }
+    if notes:
+        manifest["notes"] = notes
+    return _json_value(manifest)
 
 
 def dynamic_roots_manifest(
