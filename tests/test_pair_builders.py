@@ -59,22 +59,31 @@ def test_materialize_rollout_differences_from_token_activations(tmp_path):
     shard = tmp_path / "shard_0000.npz"
     token_activations = np.zeros((3, 64, 2), dtype=np.float32)
     token_activations[1, :, 0] = 2.0
+    policy_logits = np.asarray([[0.5, 1.0], [0.0, 0.0], [-0.5, 0.25]], dtype=np.float32)
     np.savez_compressed(
         shard,
         fens=np.asarray(["root", "best1", "sub1"], dtype=object),
         token_activations=token_activations,
+        policy_logits=policy_logits,
     )
 
     activation_index, key = load_activation_index(tmp_path)
+    policy_logit_index, policy_key = load_activation_index(
+        tmp_path,
+        activation_key="policy_logits",
+    )
     assert key == "token_activations"
+    assert policy_key == "policy_logits"
     payload = materialize_rollout_differences(
         iter_rollout_pair_records(pairs),
         activation_index,
         mode="mean",
+        policy_logit_index=policy_logit_index,
     )
 
     assert payload["differences"].shape == (1, 2)
     np.testing.assert_allclose(payload["differences"][0], [1.0, 0.0])
+    np.testing.assert_allclose(payload["policy_logits"], [[0.5, 1.0]])
     assert payload["root_fens"].tolist() == ["root"]
     assert payload["best_moves"].tolist() == ["e2e4"]
     assert payload["subpar_moves"].tolist() == ["d2d4"]

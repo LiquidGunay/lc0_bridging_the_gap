@@ -126,9 +126,11 @@ def materialize_rollout_differences(
     mode: str = "flat",
     index_mode: str = "both",
     max_records: int | None = None,
+    policy_logit_index: dict[str, np.ndarray] | None = None,
 ) -> dict:
     """Build ``psi(best) - psi(subpar)`` rows and aligned metadata arrays."""
     differences = []
+    policy_logits = []
     root_fens = []
     best_moves = []
     subpar_moves = []
@@ -170,16 +172,20 @@ def materialize_rollout_differences(
         consumed += 1
         try:
             best_line = record["best"]
+            best_keys = trajectory_keys_for_line(best_line)
             best_activation = trajectory_activations(
-                trajectory_keys_for_line(best_line),
+                best_keys,
                 activation_index,
             )
+            root_policy_logits = None
+            if policy_logit_index is not None:
+                root_policy_logits = policy_logit_index[best_keys[0]]
             best_vector = aggregate_trajectory(
                 best_activation,
                 mode=mode,
                 index_mode=index_mode,
             )
-        except (KeyError, ValueError):
+        except (IndexError, KeyError, ValueError):
             skipped += 1
             continue
 
@@ -199,6 +205,8 @@ def materialize_rollout_differences(
                 continue
 
             differences.append(best_vector - subpar_vector)
+            if policy_logit_index is not None:
+                policy_logits.append(root_policy_logits)
             root_fens.append(record.get("root_fen", ""))
             best_moves.append(best_line.get("move", ""))
             subpar_moves.append(subpar_line.get("move", ""))
@@ -235,7 +243,7 @@ def materialize_rollout_differences(
     if not differences:
         raise ValueError("No rollout differences could be materialized")
 
-    return {
+    payload = {
         "differences": np.asarray(differences),
         "root_fens": np.asarray(root_fens, dtype=object),
         "best_moves": np.asarray(best_moves, dtype=object),
@@ -272,3 +280,6 @@ def materialize_rollout_differences(
         "records_consumed": np.asarray(consumed, dtype=np.int32),
         "records_or_lines_skipped": np.asarray(skipped, dtype=np.int32),
     }
+    if policy_logit_index is not None:
+        payload["policy_logits"] = np.asarray(policy_logits)
+    return payload
