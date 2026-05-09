@@ -47,7 +47,13 @@ from .dynamic_splits import (
     split_pair_indices,
     subset_pairs_payload,
 )
-from .dynamic_teachability import teachability_curriculum_records
+from .dynamic_teachability import (
+    curriculum_pair_indices,
+    evaluate_policy_adapter,
+    teachability_curriculum_records,
+    teachability_lift_report,
+    train_low_rank_policy_adapter,
+)
 from .manifests import (
     dynamic_roots_manifest,
     file_manifest,
@@ -105,7 +111,11 @@ __all__ = [
     "select_random_indices",
     "select_top_indices",
     "build_dynamic_concept_report",
+    "curriculum_pair_indices",
+    "evaluate_policy_adapter",
     "teachability_curriculum_records",
+    "teachability_lift_report",
+    "train_low_rank_policy_adapter",
     "infer_pair_row_count",
     "root_fen_group_key",
     "root_split_summary",

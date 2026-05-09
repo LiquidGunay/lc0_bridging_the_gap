@@ -45,6 +45,7 @@ DEFAULT_ROW_ALIGNED_KEYS = frozenset(
         "root_plies",
         "root_sources",
         "root_record_ids",
+        "policy_logits",
     }
 )
 

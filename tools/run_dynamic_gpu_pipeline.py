@@ -897,6 +897,8 @@ def main(argv: list[str] | None = None) -> int:
             "--mode",
             "flat",
         ]
+        if args.store_policy_logits:
+            cmd.extend(["--policy-logits-key", "policy_logits"])
         _run_command(
             stage="materialize",
             cmd=cmd,

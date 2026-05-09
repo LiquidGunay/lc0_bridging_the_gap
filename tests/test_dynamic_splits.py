@@ -80,6 +80,7 @@ def test_subset_pairs_payload_preserves_non_row_metadata():
         "best_depth": np.asarray([8, 8, 7, 9, 9, 8], dtype=object),
         "subpar_nodes": np.asarray([90, 91, 92, 93, 94, 95], dtype=object),
         "best_raw_info_keys": np.asarray([["depth", "nodes"]] * 6, dtype=object),
+        "policy_logits": np.arange(12, dtype=np.float32).reshape(6, 2),
         "feature_names": np.asarray(["f0", "f1", "f2", "f3", "f4", "f5"], dtype=object),
         "sample_weights": np.arange(6),
         "records_consumed": np.asarray(12, dtype=np.int32),
@@ -112,6 +113,7 @@ def test_subset_pairs_payload_preserves_non_row_metadata():
         ["depth", "nodes"],
         ["depth", "nodes"],
     ]
+    np.testing.assert_array_equal(subset["policy_logits"], payload["policy_logits"][[0, 2, 5]])
     assert subset["feature_names"].tolist() == ["f0", "f1", "f2", "f3", "f4", "f5"]
     assert subset["sample_weights"].tolist() == [0, 1, 2, 3, 4, 5]
     assert int(subset["records_consumed"]) == 12
@@ -134,6 +136,7 @@ def test_split_dynamic_pairs_cli_writes_grouped_train_test_files(tmp_path, monke
         best_moves=np.asarray(["a1a2", "a1a3", "b1b2", "c1c2", "c1c3", "d1d2"], dtype=object),
         subpar_moves=np.asarray(["a1a4", "a1a5", "b1b3", "c1c4", "c1c5", "d1d3"], dtype=object),
         feature_names=np.asarray(["f0", "f1", "f2", "f3", "f4", "f5"], dtype=object),
+        policy_logits=np.arange(12, dtype=np.float32).reshape(6, 2),
         custom_scores=np.asarray([10, 11, 12, 13, 14, 15], dtype=np.int32),
         records_consumed=np.asarray(99, dtype=np.int32),
         metadata=np.asarray(
@@ -170,6 +173,8 @@ def test_split_dynamic_pairs_cli_writes_grouped_train_test_files(tmp_path, monke
     assert train["differences"].shape[0] + test["differences"].shape[0] == 6
     assert set(train["root_fens"].tolist()).isdisjoint(set(test["root_fens"].tolist()))
     assert train["feature_names"].tolist() == ["f0", "f1", "f2", "f3", "f4", "f5"]
+    assert train["policy_logits"].shape[0] == train["differences"].shape[0]
+    assert test["policy_logits"].shape[0] == test["differences"].shape[0]
     assert train["custom_scores"].shape[0] == train["differences"].shape[0]
     assert test["custom_scores"].shape[0] == test["differences"].shape[0]
     assert int(train["records_consumed"]) == 99

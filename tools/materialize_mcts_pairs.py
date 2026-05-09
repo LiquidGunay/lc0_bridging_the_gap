@@ -30,6 +30,14 @@ def main() -> int:
         choices=["auto", "token_activations", "embeddings"],
         help="Which activation array to use from shards.",
     )
+    parser.add_argument(
+        "--policy-logits-key",
+        default=None,
+        help=(
+            "Optional activation-shard key for root teacher policy logits, usually "
+            "'policy_logits' when dump_activations.py used --store-policy-logits."
+        ),
+    )
     parser.add_argument("--mode", choices=["flat", "mean"], default="flat")
     parser.add_argument(
         "--index-mode",
@@ -44,12 +52,19 @@ def main() -> int:
         args.activations,
         activation_key=args.activation_key,
     )
+    policy_logit_index = None
+    if args.policy_logits_key:
+        policy_logit_index, _ = load_activation_index(
+            args.activations,
+            activation_key=args.policy_logits_key,
+        )
     payload = materialize_rollout_differences(
         iter_rollout_pair_records(args.pairs_jsonl),
         activation_index,
         mode=args.mode,
         index_mode=args.index_mode,
         max_records=args.max_records,
+        policy_logit_index=policy_logit_index,
     )
     metadata = {
         "pairs_jsonl": args.pairs_jsonl,
@@ -63,6 +78,8 @@ def main() -> int:
         "dimension": int(payload["differences"].shape[1]),
         "records_consumed": int(payload["records_consumed"]),
         "records_or_lines_skipped": int(payload["records_or_lines_skipped"]),
+        "policy_logits_key": args.policy_logits_key,
+        "has_policy_logits": "policy_logits" in payload,
     }
 
     out_path = Path(args.out)

@@ -9,6 +9,7 @@ Guidance for future work in this repository. Keep this file short, factual, and 
 - Keep `README.md` updated so the repo stays easy to understand and run. Update it whenever you add or move major features, tools, or workflows.
 - Ensure reproducibility details are kept current in `README.md` (uv-based environment setup, GPU/CPU paths, and any pinned tool/model versions) before pushing updates.
 - After running concept discovery, use `tools/causal_validate.py` to generate `causal_report.json` files and rebuild `data/concept_report.md` with `tools/build_concept_report.py`.
+- For dynamic teachability baselines, keep `policy_logits` in materialized pair NPZs and use `tools/evaluate_teachability.py` before claiming prototype-vs-random lift.
 - Use the specific target network `BT4-1024x15x32h-swa-6147500-policytune-332.pb.gz` as the default model for all tests and comparisons.
 - Use the official LC0 binary and its bundled `leela2onnx` for ONNX export; record the exact LC0 release version and archive checksum.
 - As of 2026-04-28, the latest official LC0 release is v0.32.1; update this pin if a newer release is published.

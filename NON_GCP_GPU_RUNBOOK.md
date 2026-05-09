@@ -328,6 +328,7 @@ cat data/runs/${RUN_ID}/shards/shard_*_of_*/mcts_pairs/trajectory.records.jsonl 
   --layer trunk \
   --activation-mode flat \
   --store-token-activations \
+  --store-policy-logits \
   --batch-size 64 \
   --shard-size 4096 \
   --count-fens \
@@ -337,7 +338,8 @@ cat data/runs/${RUN_ID}/shards/shard_*_of_*/mcts_pairs/trajectory.records.jsonl 
   --pairs-jsonl "$MERGED/mcts_pairs/pairs.jsonl" \
   --activations "$MERGED/activations/trajectory_flat" \
   --out "$MERGED/mcts_pairs/pairs.npz" \
-  --mode flat
+  --mode flat \
+  --policy-logits-key policy_logits
 
 .venv/bin/python tools/split_dynamic_pairs.py \
   --pairs "$MERGED/mcts_pairs/pairs.npz" \
@@ -377,6 +379,21 @@ cat data/runs/${RUN_ID}/shards/shard_*_of_*/mcts_pairs/trajectory.records.jsonl 
   --top-k 32 \
   --random-count 32 \
   --split-name train
+
+.venv/bin/python tools/export_teachability_curriculum.py \
+  --prototypes "$MERGED/concepts/dynamic_families/family_000/prototypes_report.json" \
+  --out "$MERGED/concepts/dynamic_families/family_000/teachability_curriculum.jsonl"
+
+.venv/bin/python tools/evaluate_teachability.py \
+  --features "$MERGED/mcts_pairs/pairs.train.npz" \
+  --eval-features "$MERGED/mcts_pairs/pairs.test.npz" \
+  --curriculum "$MERGED/concepts/dynamic_families/family_000/teachability_curriculum.jsonl" \
+  --out "$MERGED/concepts/dynamic_families/family_000/teachability_report.json" \
+  --feature-key differences \
+  --logits-key policy_logits \
+  --hidden-dim 64 \
+  --steps 1000 \
+  --batch-size 64
 
 .venv/bin/python tools/dynamic_policy_margin.py \
   --pairs "$MERGED/mcts_pairs/pairs.test.npz" \
@@ -421,6 +438,7 @@ After the GPU run finishes, inspect:
 - `concepts/screening_sweep/summary.md`
 - `concepts/screening_sweep/abs_mean_2048/report.md`
 - `concepts/dynamic_families/report.json`
+- `concepts/dynamic_families/family_000/teachability_report.json`
 - `concepts/dynamic_families/family_000/policy_margin_report.json`
 - Whether `abs_mean_2048` still beats smaller/larger feature caps
 - Whether policy-margin should be rerun on the strongest held-out concept
