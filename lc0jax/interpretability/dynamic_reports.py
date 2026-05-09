@@ -198,6 +198,122 @@ def _policy_margin_lines(policy_margin_report: dict[str, Any] | None) -> list[st
     ]
 
 
+def _load_family_artifacts(families_dir: Path | None, family_id: int) -> dict[str, Any]:
+    if families_dir is None:
+        return {}
+    family_dir = families_dir / f"family_{family_id:03d}"
+    artifacts: dict[str, Any] = {}
+    for key, filename in (
+        ("evaluation", "heldout_eval_report.json"),
+        ("prototypes", "prototypes_report.json"),
+        ("policy_margin", "policy_margin_report.json"),
+    ):
+        candidate = family_dir / filename
+        if candidate.exists():
+            artifacts[key] = _read_json(candidate)
+    return artifacts
+
+
+def _family_artifact_metrics(artifacts: dict[str, Any]) -> dict[str, Any]:
+    evaluation = artifacts.get("evaluation", {})
+    evaluation_metrics = evaluation.get("evaluation", {})
+    prototypes = artifacts.get("prototypes", {})
+    policy_margin = artifacts.get("policy_margin", {})
+    return {
+        "heldout_constraint": evaluation_metrics.get("constraint_satisfaction"),
+        "heldout_margin": evaluation_metrics.get("margin_satisfaction"),
+        "heldout_mean_score": evaluation_metrics.get("mean_score"),
+        "prototypes": len(prototypes.get("prototypes", [])) if prototypes else None,
+        "prototype_max_score": prototypes.get("score_summary", {}).get("max"),
+        "policy_delta": policy_margin.get("mean_delta_margin"),
+        "policy_positive": policy_margin.get("fraction_delta_positive"),
+    }
+
+
+def _family_screening_summary(family: dict[str, Any]) -> str:
+    screening = family.get("screening")
+    if isinstance(screening, dict):
+        if not screening.get("enabled", False):
+            return "disabled"
+        method = screening.get("method", "n/a")
+        screened = screening.get("screened_dimension", "n/a")
+        max_features = screening.get("max_features", "n/a")
+        return f"{method}/{screened}/{max_features}"
+    if not family.get("screening_enabled", False):
+        return "disabled"
+    method = family.get("screening_method", "n/a")
+    screened = family.get("screened_dimension", "n/a")
+    max_features = family.get("screening_max_features", "n/a")
+    return f"{method}/{screened}/{max_features}"
+
+
+def _families_lines(
+    families_report: dict[str, Any] | None,
+    *,
+    families_dir: Path | None,
+) -> list[str]:
+    if not families_report:
+        return ["## Concept Families", "", "- report: not provided"]
+
+    families = families_report.get("families", [])
+    lines = [
+        "## Concept Families",
+        "",
+        f"- method: {families_report.get('method', 'n/a')}",
+        f"- clusters requested: {families_report.get('clusters_requested', 'n/a')}",
+        f"- families solved: {families_report.get('families_solved', len(families))}",
+        f"- skipped clusters: {len(families_report.get('skipped_clusters', []))}",
+        f"- bootstrap count: {families_report.get('bootstrap_count', 'n/a')}",
+    ]
+    if not families:
+        lines.append("- families: none")
+        return lines
+
+    lines.extend(
+        [
+            "",
+            (
+                "| family | status | cluster | rows | train constraint | train margin | "
+                "objective | heldout constraint | heldout margin | stability min cos | "
+                "stability pass | screening | prototypes | prototype max | policy delta | "
+                "policy positive |"
+            ),
+            "|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|",
+        ]
+    )
+    for family in families:
+        family_id = int(family.get("family_id", -1))
+        artifacts = _load_family_artifacts(families_dir, family_id)
+        metrics = _family_artifact_metrics(artifacts)
+        stability = family.get("stability", {})
+        lines.append(
+            "| {family_id} | {status} | {cluster_id} | {rows} | {train_constraint} | "
+            "{train_margin} | {objective} | {heldout_constraint} | {heldout_margin} | "
+            "{min_cosine} | {pass_fraction} | {screening} | {prototypes} | {prototype_max} | "
+            "{policy_delta} | {policy_positive} |".format(
+                family_id=family_id,
+                status=_escape_table(family.get("status", "n/a")),
+                cluster_id=_escape_table(family.get("cluster_id", "n/a")),
+                rows=_escape_table(family.get("num_pairs", family.get("num_rows", "n/a"))),
+                train_constraint=_format_float(family.get("constraint_satisfaction")),
+                train_margin=_format_float(family.get("margin_satisfaction")),
+                objective=_format_float(family.get("objective")),
+                heldout_constraint=_format_float(metrics["heldout_constraint"]),
+                heldout_margin=_format_float(metrics["heldout_margin"]),
+                min_cosine=_format_float(stability.get("min_cosine")),
+                pass_fraction=_format_float(stability.get("pass_fraction")),
+                screening=_escape_table(_family_screening_summary(family)),
+                prototypes=_escape_table(
+                    "n/a" if metrics["prototypes"] is None else metrics["prototypes"]
+                ),
+                prototype_max=_format_float(metrics["prototype_max_score"]),
+                policy_delta=_format_float(metrics["policy_delta"]),
+                policy_positive=_format_float(metrics["policy_positive"]),
+            )
+        )
+    return lines
+
+
 def build_dynamic_concept_report(
     *,
     pairs_path: str | Path,
@@ -207,6 +323,7 @@ def build_dynamic_concept_report(
     prototypes_path: str | Path | None = None,
     baselines_path: str | Path | None = None,
     policy_margin_path: str | Path | None = None,
+    families_path: str | Path | None = None,
     top_n: int = 10,
 ) -> str:
     """Return a markdown report for a dynamic concept run."""
@@ -244,6 +361,22 @@ def build_dynamic_concept_report(
         prototypes_report = _read_json(candidate) if candidate.exists() else None
     else:
         prototypes_report = _read_json(Path(prototypes_path))
+
+    families_dir = None
+    if families_path is None:
+        candidate = concept_dir / "families_report.json"
+        if candidate.exists():
+            families_report = _read_json(candidate)
+            families_dir = candidate.parent
+        else:
+            families_report = None
+        if families_report is None and solver_report.get("method") == "dynamic_concept_families":
+            families_report = solver_report
+            families_dir = concept_dir
+    else:
+        family_report_path = Path(families_path)
+        families_report = _read_json(family_report_path)
+        families_dir = family_report_path.parent
 
     metadata = pairs["metadata"]
     differences_shape = pairs["differences_shape"]
@@ -290,6 +423,7 @@ def build_dynamic_concept_report(
     lines.extend([*_prototype_lines(prototypes_report), ""])
     lines.extend([*_baseline_lines(baselines_report), ""])
     lines.extend([*_policy_margin_lines(policy_margin_report), ""])
+    lines.extend([*_families_lines(families_report, families_dir=families_dir), ""])
     lines.extend(
         [
             "## Pair Examples",

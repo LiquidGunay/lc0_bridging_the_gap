@@ -1,6 +1,6 @@
 # Implementation Status and Next Work
 
-Updated: 2026-05-05
+Updated: 2026-05-09
 
 ## Current Implementation Status
 
@@ -25,7 +25,7 @@ Implemented toward parity:
 - `lc0jax.interpretability.pair_builders` and `tools/materialize_mcts_pairs.py` join rollout-pair JSONL records with trajectory activation shards and write solver-ready `pairs.npz` files containing `differences = psi(best) - psi(subpar)` plus aligned metadata. New trajectory records carry stable activation keys so repeated FENs under different histories do not collide, and root history/provenance plus available UCI-derived row metadata are preserved for downstream splits, prototypes, and curricula.
 - `lc0jax.interpretability.manifests` and `tools/run_dynamic_gpu_pipeline.py` write `dynamic_roots_manifest.json` in every dynamic wrapper work directory. The manifest locks root input mode, history requirement/completeness, input files, root/filter/search settings, dry-run/partial/completed status, output existence, LC0/model paths, BT4 checksum when available, and output locations.
 - `tools/write_reference_manifest.py` writes `human_reference_v1` and `machine_reference_v1` manifests for source datasets. These lock source URLs, local input/output files, optional checksums/line counts, rating/time/phase filters, dedupe key, split key, exclusions, and count metadata before large GPU runs.
-- `lc0jax.interpretability.dynamic_reports` and `tools/build_dynamic_concept_report.py` build markdown report cards from `pairs.npz`, solver `report.json`, and optional `novelty_report.json`.
+- `lc0jax.interpretability.dynamic_reports` and `tools/build_dynamic_concept_report.py` build markdown report cards from `pairs.npz`, solver `report.json`, optional `novelty_report.json`, and optional aggregate dynamic concept-family reports. Family summaries include solver status, train metrics, screening, bootstrap stability, and any per-family held-out/prototype/policy-margin artifacts found under `family_XXX/`.
 - `lc0jax.interpretability.dynamic_baselines` and `tools/dynamic_concept_baselines.py` compare learned dynamic directions against random sparse vectors, shuffled-label projections, and optional shuffled-label sparse solves.
 - `lc0jax.interpretability.dynamic_evaluation` and `tools/evaluate_dynamic_concept.py` report held-out constraint and margin satisfaction for a learned dynamic direction on a held-out pair split. The CLI evaluates `raw_direction` by default so held-out margins are comparable to solver margins.
 - `lc0jax.interpretability.dynamic_prototypes` and `tools/select_dynamic_prototypes.py` select top-scoring dynamic concept pair rows plus random controls for future teachability curricula. Prototype selection auto-detects reversed concept runs and preserves row-aligned metadata in selected rows.
@@ -64,8 +64,8 @@ Known gaps:
 1. Generate and commit/reference real human/machine manifests for the next GPU run.
    The manifest writer now exists. Before scaling, run it on the staged TCEC/top-human inputs and keep `data/manifests/human_reference_v1.json` and `data/manifests/machine_reference_v1.json` with the run artifacts.
 
-2. Integrate concept-family outputs into downstream reports.
-   Concept-family clustering and per-family sparse solves now exist. Next, run families on a larger dynamic dataset and add family-level held-out/prototype/policy summaries to the aggregate report.
+2. Run concept-family validation on a larger dynamic dataset.
+   Concept-family clustering, per-family sparse solves, and aggregate markdown summaries now exist. Next, run held-out evaluation, prototype selection, and calibrated policy-margin checks for the strongest families from a larger GPU run.
 
 3. Run and interpret screened flat feature-cap sweeps.
    The first sweep favors `abs_mean_2048` on held-out constraint/margin, but this is a 40-pair run. Repeat after scaling MCTS pairs and include random/shuffled causal controls before fixing defaults.
@@ -122,3 +122,4 @@ Every GCP run should write outputs under `data/runs/<RUN_ID>/` and record the ma
 - 2026-05-05: Dynamic concept-family generation implemented. Syntax and line-length checks passed for touched Python files. Focused tests passed: `.venv/bin/python -m pytest tests/test_concepts.py tests/test_solve_dynamic_concepts_cli.py tests/test_dynamic_families.py -q` (`9 passed`). Full suite passed: `.venv/bin/python -m pytest -q` (`98` collected tests). `git diff --check` passed.
 - 2026-05-05: Dynamic policy-margin random/shuffled controls implemented. Syntax and line-length checks passed for touched Python files. Focused tests passed: `.venv/bin/python -m pytest tests/test_dynamic_causal.py tests/test_dynamic_policy_margin_cli.py -q` (`6 passed`). Full suite passed: `.venv/bin/python -m pytest -q` (`100` collected tests). `git diff --check` passed.
 - 2026-05-09: Human/machine reference manifest tooling implemented. Syntax and line-length checks passed for touched Python files. Focused tests passed: `.venv/bin/python -m pytest tests/test_manifests.py -q` (`7 passed`). Full suite passed: `.venv/bin/python -m pytest -q` (`105` collected tests). `git diff --check` passed.
+- 2026-05-09: Dynamic concept-family report integration implemented. Review hardening added solver status, train margin, objective, screening, prototype max score, policy-positive columns, explicit per-family validation runbook commands, and default `families_report.json` coverage. Syntax and line-length checks passed for touched Python files. Focused tests passed: `.venv/bin/python -m pytest tests/test_dynamic_reports.py -q` (`7 passed`). Full suite passed: `.venv/bin/python -m pytest -q` (`107` collected tests). `git diff --check` passed.

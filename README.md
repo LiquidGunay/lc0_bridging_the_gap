@@ -84,7 +84,8 @@ Record the LC0 version used for ONNX export and the BT4 model checksum (see `AGE
   - `python tools/dynamic_concept_baselines.py --pairs data/runs/<RUN_ID>/mcts_pairs/pairs.test.npz --concept data/runs/<RUN_ID>/concepts/dynamic_sparse --out data/runs/<RUN_ID>/concepts/dynamic_sparse/baselines_report.json`
   - `python tools/dynamic_policy_margin.py --pairs data/runs/<RUN_ID>/mcts_pairs/pairs.test.npz --concept data/runs/<RUN_ID>/concepts/dynamic_sparse --pb models/BT4-1024x15x32h-swa-6147500-policytune-332.pb.gz --out data/runs/<RUN_ID>/concepts/dynamic_sparse/policy_margin_report.json --control-count 16 --control-kind random`
     Use `--control-count 0` for the learned-direction-only report; random or shuffled controls calibrate whether the learned patch effect is larger than same-norm control directions.
-  - `python tools/build_dynamic_concept_report.py --pairs data/runs/<RUN_ID>/mcts_pairs/pairs.test.npz --concept data/runs/<RUN_ID>/concepts/dynamic_sparse --out data/runs/<RUN_ID>/concepts/dynamic_sparse/report.md`
+  - `python tools/build_dynamic_concept_report.py --pairs data/runs/<RUN_ID>/mcts_pairs/pairs.test.npz --concept data/runs/<RUN_ID>/concepts/dynamic_sparse --families data/runs/<RUN_ID>/concepts/dynamic_families/report.json --out data/runs/<RUN_ID>/concepts/dynamic_sparse/report.md`
+    The optional `--families` report adds a concept-family summary table. It only fills per-family held-out, prototype, and policy-margin columns after you run those validation tools for each `family_XXX/` directory you want to compare.
 - Novelty filtering:
   - `python tools/filter_novel_concepts.py --concept data/runs/<RUN_ID>/concepts/dynamic_sparse --machine-embeddings data/runs/<RUN_ID>/activations/lc0_flat --human-embeddings data/runs/<RUN_ID>/activations/human_flat --out data/runs/<RUN_ID>/concepts/dynamic_sparse/novelty_report.json`
 - Causal validation (patching across many positions):

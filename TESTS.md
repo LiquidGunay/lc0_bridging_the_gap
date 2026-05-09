@@ -32,7 +32,7 @@ This document explains why each test exists and what failure it is meant to catc
 - `tests/test_mcts_rollouts.py` checks PV replay, side-to-move centipawn/WDL conversion, serialization of python-chess analysis info, reconstruction of a short root move stack from history FENs, and trajectory activation records that combine pre-root history with PV continuation history without launching LC0.
 - `tests/test_pair_builders.py` checks that rollout-pair JSONL plus activation shards materialize into the `differences` matrix consumed by the dynamic sparse solver while preserving root history/provenance and available UCI-derived row metadata.
 - `tests/test_build_mcts_pairs.py` checks that MCTS pair extraction fails fast by default on expected per-position errors, only skips them when `--skip-errors` is explicit, preserves pre-root history when given `--root-records`, stores search reproducibility metadata, and uses stable root-record-derived activation IDs that will not collide when shards are merged.
-- `tests/test_dynamic_reports.py` checks that dynamic report cards include solver status, pair materialization metadata, novelty summaries, and best/subpar PV examples.
+- `tests/test_dynamic_reports.py` checks that dynamic report cards include solver status, pair materialization metadata, novelty summaries, concept-family summaries, and best/subpar PV examples.
 - `tests/test_dynamic_baselines.py` checks constraint-satisfaction metrics plus random sparse and shuffled-label baseline summaries.
 - `tests/test_dynamic_evaluation.py` checks held-out dynamic direction evaluation reports and that the CLI defaults to `raw_direction` for margin metrics.
 - `tests/test_dynamic_causal.py` checks best-vs-subpar policy-margin summaries from base and patched logits.
